@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
-import { 
-  DollarSign,
-  Users,
-  TrendingUp, 
-  AlertCircle,
-  Zap, 
-  Calendar,
-  Settings 
-} from 'lucide-react';
+import Brand from './Brand';
+import { DollarSign, TrendingUp, AlertCircle, ArrowUpRight, CalendarDays, Settings } from 'lucide-react';
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
@@ -49,88 +42,92 @@ const Dashboard = () => {
 
   return (
     <div className="p-6 lg:p-10 min-h-screen bg-fin-dark-bg text-white">
-      <div className="flex justify-between items-center mb-10">
+      {/* Header del Dashboard */}
+      <div className="flex justify-between items-center mb-10 pb-6 border-b border-gray-800">
         <div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-white">Operational Dashboard</h2>
-            <p className="text-fin-gray-text text-sm">Resumen general del estado de tus préstamos y caja.</p>
+            <Brand />
+            <h2 className="text-3xl font-extrabold tracking-tight text-white">Tablero de Operaciones</h2>
+            <p className="text-fin-gray-text text-sm">Resumen en tiempo real del estado de la cartera.</p>
         </div>
-        <div className="flex gap-3">
-            <button className="bg-fin-charcoal-light p-3 rounded-xl border border-gray-800 text-gray-400 hover:text-white"><Zap size={20}/></button>
-            <button className="bg-fin-charcoal-light p-3 rounded-xl border border-gray-800 text-gray-400 hover:text-white"><Settings size={20}/></button>
-            <div className="w-12 h-12 rounded-full bg-fin-gradient-main flex items-center justify-center font-bold text-lg">BM</div>
+        <div className="flex gap-3 items-center">
+            <p className="text-sm text-gray-500 mr-2">Hola, Admin</p>
+            <button className="bg-fin-charcoal-light p-3 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition hover:border-gray-600"><Settings size={20}/></button>
+            <div className="w-12 h-12 rounded-full bg-fin-gradient-main flex items-center justify-center font-bold text-lg text-white shadow-neon-cyan">AD</div>
         </div>
       </div>
 
-      {/* Grid de Tarjetas Principales: Usando la estructura visual de la Imagen 3 */}
+      {/* Grid de Tarjetas Principales: Estilo High-Tech */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         
-        {/* Caja Disponible (Estilo Cyan) */}
+        {/* Caja Disponible */}
         <StatCard 
           title="SALDO EN CAJA" 
           value={`$${metricas_financieras.saldo_caja_disponible.toLocaleString()}`}
           icon={<DollarSign />}
           color="cyan"
+          subtitle="Dinero líquido listo para prestar"
         />
 
-        {/* Rentabilidad (Estilo Violeta) */}
+        {/* Rentabilidad */}
         <StatCard 
           title="GANANCIA REAL" 
           value={`$${metricas_financieras.rentabilidad_acumulada.toLocaleString()}`}
           icon={<TrendingUp />}
           color="violet"
-          subtitle="Intereses + Mora cobrados"
+          subtitle="Suma de intereses y mora cobrados"
         />
 
-        {/* Capital en Calle (Estilo Gray) */}
+        {/* Capital en Calle */}
         <StatCard 
-          title="CAPITAL EN CALLE" 
+          title="CAPITAL PRESTADO" 
           value={`$${metricas_financieras.capital_en_calle.toLocaleString()}`}
-          icon={<Users />}
+          icon={<ArrowUpRight />}
           color="gray"
+          subtitle="Monto base pendiente de cobro"
         />
 
-        {/* Tasa de Mora (Estilo Red) */}
+        {/* Tasa de Mora */}
         <StatCard 
-          title="% MORA" 
+          title="% MORA ACTIVA" 
           value={`${estado_cartera.tasa_mora_porcentaje}%`}
           icon={<AlertCircle />}
           color="red"
-          subtitle={`${estado_cartera.prestamos_en_mora} préstamos activos`}
+          subtitle={`${estado_cartera.prestamos_en_mora} préstamos vencidos`}
         />
       </div>
 
-      {/* Sección Secundaria y Simulación de Gráfico */}
+      {/* Grid Secundario */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Gráfico Simulado */}
-        <div className="lg:col-span-2 bg-fin-charcoal p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-fin-charcoal p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col justify-between group transition hover:border-fin-violet/40">
             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-white">Historical Trends</h3>
+                <h3 className="text-xl font-bold text-white">Tendencias de Crecimiento</h3>
                 <div className="flex gap-2 text-sm text-gray-500">
-                    <span className="text-fin-cyan font-semibold">Historical</span>
-                    <span>Month</span>
+                    <span className="text-fin-cyan font-semibold">Historial</span>
+                    <span>Mensual</span>
                 </div>
             </div>
             {/* Espacio para Recharts */}
-            <div className="h-60 bg-fin-dark-bg/50 rounded-xl border border-dashed border-gray-700 flex items-center justify-center text-gray-600">
-                Gráfico de Tendencias (Violeta/Cian)
+            <div className="h-60 bg-fin-dark-bg/50 rounded-xl border border-dashed border-gray-700 flex items-center justify-center text-gray-600 group-hover:border-gray-500 transition">
+                [Espacio para Gráfico Violeta/Cian]
             </div>
         </div>
 
         {/* Operativo del Día */}
-        <div className="bg-fin-charcoal-light p-8 rounded-3xl shadow-fin-card border border-gray-800">
+        <div className="bg-fin-charcoal-light p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col transition hover:border-fin-violet/40">
           <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-            <Calendar className="text-fin-violet" />
-            Operativo del Día
+            <CalendarDays className="text-fin-violet h-5 w-5" />
+            Operaciones del Día
           </h3>
-          <div className="space-y-5">
-            <div className="flex justify-between items-center p-4 bg-fin-charcoal rounded-xl border border-gray-700">
-              <span className="text-fin-gray-text">Cobros esperados hoy:</span>
-              <span className="font-extrabold text-2xl text-white">${operativo_hoy.cobros_pendientes_hoy.toLocaleString()}</span>
+          <div className="space-y-5 flex-grow">
+            <div className="p-5 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40">
+              <span className="text-fin-gray-text text-xs uppercase font-bold tracking-widest">Cobros esperados hoy</span>
+              <p className="font-black text-3xl text-white mt-1">${operativo_hoy.cobros_pendientes_hoy.toLocaleString()}</p>
             </div>
-            <div className="flex justify-between items-center p-4 bg-fin-charcoal rounded-xl border border-gray-700">
-              <span className="text-fin-gray-text">Clientes activos:</span>
-              <span className="font-extrabold text-2xl text-white">{operativo_hoy.clientes_total}</span>
+            <div className="p-5 bg-fin-charcoal rounded-2xl border border-gray-700">
+              <span className="text-fin-gray-text text-xs uppercase font-bold tracking-widest">Cartera total de clientes</span>
+              <p className="font-black text-3xl text-white mt-1">{operativo_hoy.clientes_total}</p>
             </div>
           </div>
         </div>
