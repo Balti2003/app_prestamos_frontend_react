@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
 import { 
-  DollarSign, 
+  DollarSign,
+  Users,
   TrendingUp, 
-  AlertCircle, 
-  ArrowUpRight, 
-  Calendar 
+  AlertCircle,
+  Zap, 
+  Calendar,
+  Settings 
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -22,6 +24,7 @@ const Dashboard = () => {
       } catch (err) {
         console.error("Error al obtener datos del dashboard:", err);
         setError("No se pudo cargar la información financiera.");
+      } finally {
         setLoading(false);
       }
     };
@@ -30,14 +33,14 @@ const Dashboard = () => {
   }, []);
 
   if (loading) return (
-    <div className="flex h-96 items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <div className="flex h-screen items-center justify-center bg-fin-dark-bg text-white">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-fin-cyan"></div>
     </div>
   );
 
   if (error) return (
-    <div className="p-10 text-center text-red-500 bg-red-50 rounded-lg m-8">
-      <AlertCircle className="mx-auto mb-2" />
+    <div className="p-10 text-center text-red-400 bg-red-950/30 rounded-2xl m-8 border border-red-900">
+      <AlertCircle className="mx-auto mb-2 text-red-500" />
       <p>{error}</p>
     </div>
   );
@@ -45,96 +48,123 @@ const Dashboard = () => {
   const { metricas_financieras, estado_cartera, operativo_hoy } = data;
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-800">Panel de Control</h2>
-        <p className="text-gray-500 text-sm">Resumen general del estado de tus préstamos y caja.</p>
+    <div className="p-6 lg:p-10 min-h-screen bg-fin-dark-bg text-white">
+      <div className="flex justify-between items-center mb-10">
+        <div>
+            <h2 className="text-3xl font-extrabold tracking-tight text-white">Operational Dashboard</h2>
+            <p className="text-fin-gray-text text-sm">Resumen general del estado de tus préstamos y caja.</p>
+        </div>
+        <div className="flex gap-3">
+            <button className="bg-fin-charcoal-light p-3 rounded-xl border border-gray-800 text-gray-400 hover:text-white"><Zap size={20}/></button>
+            <button className="bg-fin-charcoal-light p-3 rounded-xl border border-gray-800 text-gray-400 hover:text-white"><Settings size={20}/></button>
+            <div className="w-12 h-12 rounded-full bg-fin-gradient-main flex items-center justify-center font-bold text-lg">BM</div>
+        </div>
       </div>
 
-      {/* Grid de Tarjetas Principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Grid de Tarjetas Principales: Usando la estructura visual de la Imagen 3 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         
-        {/* Caja Disponible */}
+        {/* Caja Disponible (Estilo Cyan) */}
         <StatCard 
-          title="Saldo en Caja" 
+          title="SALDO EN CAJA" 
           value={`$${metricas_financieras.saldo_caja_disponible.toLocaleString()}`}
-          icon={<DollarSign className="text-blue-600" />}
-          color="blue"
+          icon={<DollarSign />}
+          color="cyan"
         />
 
-        {/* Rentabilidad */}
+        {/* Rentabilidad (Estilo Violeta) */}
         <StatCard 
-          title="Ganancia Real" 
+          title="GANANCIA REAL" 
           value={`$${metricas_financieras.rentabilidad_acumulada.toLocaleString()}`}
-          icon={<TrendingUp className="text-green-600" />}
-          color="green"
+          icon={<TrendingUp />}
+          color="violet"
           subtitle="Intereses + Mora cobrados"
         />
 
-        {/* Capital en Calle */}
+        {/* Capital en Calle (Estilo Gray) */}
         <StatCard 
-          title="Capital en Calle" 
+          title="CAPITAL EN CALLE" 
           value={`$${metricas_financieras.capital_en_calle.toLocaleString()}`}
-          icon={<ArrowUpRight className="text-purple-600" />}
-          color="purple"
+          icon={<Users />}
+          color="gray"
         />
 
-        {/* Tasa de Mora */}
+        {/* Tasa de Mora (Estilo Red) */}
         <StatCard 
-          title="Tasa de Mora" 
+          title="% MORA" 
           value={`${estado_cartera.tasa_mora_porcentaje}%`}
-          icon={<AlertCircle className="text-red-600" />}
+          icon={<AlertCircle />}
           color="red"
           subtitle={`${estado_cartera.prestamos_en_mora} préstamos activos`}
         />
       </div>
 
-      {/* Sección Secundaria */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Calendar className="mr-2 h-5 w-5 text-gray-400" />
+      {/* Sección Secundaria y Simulación de Gráfico */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Gráfico Simulado */}
+        <div className="lg:col-span-2 bg-fin-charcoal p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col justify-between">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Historical Trends</h3>
+                <div className="flex gap-2 text-sm text-gray-500">
+                    <span className="text-fin-cyan font-semibold">Historical</span>
+                    <span>Month</span>
+                </div>
+            </div>
+            {/* Espacio para Recharts */}
+            <div className="h-60 bg-fin-dark-bg/50 rounded-xl border border-dashed border-gray-700 flex items-center justify-center text-gray-600">
+                Gráfico de Tendencias (Violeta/Cian)
+            </div>
+        </div>
+
+        {/* Operativo del Día */}
+        <div className="bg-fin-charcoal-light p-8 rounded-3xl shadow-fin-card border border-gray-800">
+          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+            <Calendar className="text-fin-violet" />
             Operativo del Día
           </h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Cobros esperados hoy:</span>
-              <span className="font-bold text-gray-800">${operativo_hoy.cobros_pendientes_hoy.toLocaleString()}</span>
+          <div className="space-y-5">
+            <div className="flex justify-between items-center p-4 bg-fin-charcoal rounded-xl border border-gray-700">
+              <span className="text-fin-gray-text">Cobros esperados hoy:</span>
+              <span className="font-extrabold text-2xl text-white">${operativo_hoy.cobros_pendientes_hoy.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Clientes activos:</span>
-              <span className="font-bold text-gray-800">{operativo_hoy.clientes_total}</span>
+            <div className="flex justify-between items-center p-4 bg-fin-charcoal rounded-xl border border-gray-700">
+              <span className="text-fin-gray-text">Clientes activos:</span>
+              <span className="font-extrabold text-2xl text-white">{operativo_hoy.clientes_total}</span>
             </div>
           </div>
-        </div>
-        
-        {/* Aquí podrías agregar un gráfico de Recharts más adelante */}
-        <div className="bg-blue-600 p-6 rounded-xl shadow-sm text-white flex flex-col justify-center">
-            <h3 className="text-xl font-bold mb-2">Próxima Mejora</h3>
-            <p className="text-blue-100 opacity-80">Estamos trabajando en integrar gráficos de crecimiento mensual para tu rentabilidad.</p>
         </div>
       </div>
     </div>
   );
 };
 
-// Componente pequeño para las tarjetas para no repetir código
+// Componente pequeño de tarjeta optimizado para el estilo oscuro
 const StatCard = ({ title, value, icon, color, subtitle }) => {
-  const colorClasses = {
-    blue: "border-blue-500 bg-blue-50",
-    green: "border-green-500 bg-green-50",
-    purple: "border-purple-500 bg-purple-50",
-    red: "border-red-500 bg-red-50",
+  const styles = {
+    cyan: { icon: "text-fin-cyan", value: "text-white", border: "border-fin-cyan", bg: "from-fin-cyan/10" },
+    violet: { icon: "text-fin-violet", value: "text-white", border: "border-fin-violet", bg: "from-fin-violet/10" },
+    gray: { icon: "text-gray-400", value: "text-white", border: "border-gray-700", bg: "from-gray-700/10" },
+    red: { icon: "text-red-400", value: "text-red-400", border: "border-red-900", bg: "from-red-900/10" },
   };
 
+  const style = styles[color];
+
   return (
-    <div className={`bg-white p-6 rounded-xl shadow-sm border-t-4 ${colorClasses[color]} transition-transform hover:scale-105`}>
-      <div className="flex justify-between items-start mb-2">
-        <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">{title}</p>
-        <div className={`p-2 rounded-lg bg-white shadow-sm`}>{icon}</div>
+    <div className={`bg-fin-gradient-card p-7 rounded-3xl shadow-fin-card border border-gray-800 transition-transform hover:-translate-y-1 group relative overflow-hidden`}>
+      {/* Resplandor de fondo sutil */}
+      <div className={`absolute -bottom-10 -right-10 w-32 h-32 bg-gradient-radial ${style.bg} to-transparent opacity-50 blur-xl`}></div>
+      
+      <div className="relative z-10 flex flex-col h-full justify-between">
+        <div className="flex justify-between items-center mb-6">
+            <p className="text-sm text-fin-gray-text uppercase font-bold tracking-wider">{title}</p>
+            <div className={`p-3 rounded-xl bg-fin-charcoal border border-gray-700 ${style.icon} group-hover:shadow-neon-${color}`}>{icon}</div>
+        </div>
+        <div>
+            <h3 className={`text-4xl font-black ${style.value}`}>{value}</h3>
+            {subtitle && <p className="text-xs text-gray-500 mt-2">{subtitle}</p>}
+        </div>
       </div>
-      <h3 className="text-2xl font-black text-gray-800">{value}</h3>
-      {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
     </div>
   );
 };

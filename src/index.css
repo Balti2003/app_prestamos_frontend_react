@@ -1,1 +1,43 @@
 @import "tailwindcss";
+
+@layer components {
+  /* Fondo principal */
+  .bg-fin-dark-bg {
+    background-color: #0a0b10;
+  }
+  
+  /* Lado izquierdo del Login */
+  .bg-fin-gradient-main {
+    background: linear-gradient(135deg, #6d28d9 0%, #0891b2 100%);
+  }
+
+  /* Tarjetas del Dashboard */
+  .bg-fin-charcoal {
+    background-color: #16181f;
+  }
+  
+  .bg-fin-charcoal-light {
+    background-color: #1e2129;
+  }
+
+  /* Colores de texto y neones */
+  .text-fin-cyan { color: #22d3ee; }
+  .text-fin-violet { color: #8b5cf6; }
+  .text-fin-gray-text { color: #94a3b8; }
+  
+  /* Efectos de resplandor (Neón) */
+  .shadow-neon-violet {
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+  }
+  .shadow-neon-cyan {
+    box-shadow: 0 0 15px rgba(34, 211, 230, 0.4);
+  }
+}
+
+/* Forzamos el fondo oscuro en toda la app */
+body, html, #root {
+  background-color: #0a0b10 !important;
+  color: white;
+  margin: 0;
+  padding: 0;
+}
