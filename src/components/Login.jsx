@@ -18,7 +18,7 @@ const Login = ({ onLogin }) => {
       localStorage.setItem('token', response.data.access);
       onLogin();
     } catch {
-      setError('Las credenciales ingresadas son incorrectas o el servidor no responde.');
+      setError('Las credenciales ingresadas son incorrectas');
     } finally {
       setLoading(false);
     }
@@ -27,24 +27,37 @@ const Login = ({ onLogin }) => {
   return (
     <div className="flex min-h-screen bg-fin-dark-bg text-white w-full">
       {/* Columna Izquierda: Imagen y Bienvenida */}
-      {/* --- NOTA: Reemplaza la URL de abajo por tu imagen conceptual --- */}
       <div 
         className="hidden lg:flex lg:w-1/2 p-16 flex-col justify-between relative bg-cover bg-center"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=1200&auto=format&fit=crop')" }}
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop')" }}
       >
         {/* Overlay oscuro para legibilidad del texto */}
         <div className="absolute inset-0 bg-fin-dark-bg/80 backdrop-blur-sm"></div>
 
         <div className="relative z-10">
           <Brand size="lg" />
-          <h2 className="text-6xl font-black leading-tight tracking-tighter mb-5">
-            BIENVENIDO A TU<br/>
-            SISTEMA DE<br/>
-            <span className="text-fin-cyan">PRESTAMOS.</span>
-          </h2>
-          <p className="text-xl text-fin-gray-text max-w-lg">
-            Gestión inteligente de cartera, cobros y rentabilidad. Velocidad y precisión en cada préstamo.
-          </p>
+          
+          <div className="mt-12">
+            {/* Un pequeño detalle indicador arriba del título */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="h-[1px] w-8 bg-fin-cyan"></span>
+              <p className="text-xs font-bold tracking-[0.3em] text-fin-cyan uppercase opacity-80">
+                Plataforma Operativa
+              </p>
+            </div>
+
+            <h2 className="text-5xl font-light leading-[1.1] tracking-tighter text-white">
+              BIENVENIDO A TU<br/>
+              SISTEMA DE<br/>
+              <span className="text-7xl font-black text-gradient-fin">
+                PRÉSTAMOS.
+              </span>
+            </h2>
+
+            <p className="mt-6 text-lg text-gray-400 max-w-md leading-relaxed border-l-2 border-fin-violet/30 pl-6">
+              Gestión inteligente de cartera, cobros y rentabilidad con precisión quirúrgica.
+            </p>
+          </div>
         </div>
 
         <div className="relative z-10 flex gap-6 text-sm text-gray-500">

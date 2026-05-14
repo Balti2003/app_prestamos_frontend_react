@@ -32,6 +32,15 @@
   .shadow-neon-cyan {
     box-shadow: 0 0 15px rgba(34, 211, 230, 0.4);
   }
+
+  .text-gradient-fin {
+    background: linear-gradient(to right, #22d3ee, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent; /* Fallback */
+    display: inline-block; /* Asegura que el gradiente se aplique bien */
+  }
 }
 
 /* Forzamos el fondo oscuro en toda la app */
