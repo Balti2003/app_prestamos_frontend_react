@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import Brand from './Brand';
+import NuevoClienteModal from './NuevoClienteModal';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
   CalendarDays, Settings, LogOut, UserPlus, FilePlus, ReceiptText 
@@ -11,6 +12,7 @@ const Dashboard = ({ onLogout }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Datos para el gráfico (puedes reemplazarlos luego con datos del backend)
   const chartData = [
@@ -22,24 +24,25 @@ const Dashboard = ({ onLogout }) => {
     { name: 'Jun', ingresos: 5500 },
   ];
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const response = await api.get('/dashboard/resumen/');
-        setData(response.data);
-      } catch (err) {
-        console.error("Error al obtener datos:", err);
-        // SI EL ERROR ES 401 (Token expirado), CERRAMOS SESIÓN
-        if (err.response && err.response.status === 401) {
-          onLogout(); // Esto limpia el localStorage y te manda al Login
-        } else {
-          setError("No se pudo cargar la información financiera.");
-        }
-      } finally {
-        setLoading(false);
+  const fetchDashboardData = async () => {
+    try {
+      const response = await api.get('/dashboard/resumen/');
+      setData(response.data);
+    } catch (err) {
+      console.error("Error al obtener datos:", err);
+      // SI EL ERROR ES 401 (Token expirado), CERRAMOS SESIÓN
+      if (err.response && err.response.status === 401) {
+        onLogout(); // Esto limpia el localStorage y te manda al Login
+      } else {
+        setError("No se pudo cargar la información financiera."); 
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDashboardData();
   }, []);
 
@@ -60,7 +63,12 @@ const Dashboard = ({ onLogout }) => {
 
   return (
     <div className="min-h-screen bg-fin-dark-bg text-white font-sans">
-      
+      <NuevoClienteModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onRefresh={fetchDashboardData} 
+      />
+
       {/* HEADER */}
       <header className="p-6 lg:px-10 flex justify-between items-center border-b border-gray-800 bg-fin-charcoal/30 sticky top-0 z-50 backdrop-blur-md">
         <div className="flex flex-col">
@@ -105,7 +113,12 @@ const Dashboard = ({ onLogout }) => {
 
         {/* --- NUEVA SECCIÓN: ACCIONES RÁPIDAS --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-          <QuickActionBtn icon={<UserPlus />} title="Nuevo Cliente" color="cyan" />
+          <QuickActionBtn 
+            icon={<UserPlus />} 
+            title="Nuevo Cliente" 
+            color="cyan" 
+            onClick={() => setIsModalOpen(true)} 
+          />
           <QuickActionBtn icon={<FilePlus />} title="Crear Préstamo" color="violet" />
           <QuickActionBtn icon={<ReceiptText />} title="Registrar Pago" color="gray" />
         </div>
@@ -213,14 +226,17 @@ const Dashboard = ({ onLogout }) => {
 
 // --- COMPONENTES AUXILIARES ---
 
-const QuickActionBtn = ({ icon, title, color }) => {
+const QuickActionBtn = ({ icon, title, color, onClick }) => {
   const colors = {
     cyan: "hover:border-fin-cyan text-fin-cyan shadow-fin-cyan/5",
     violet: "hover:border-fin-violet text-fin-violet shadow-fin-violet/5",
     gray: "hover:border-white text-white shadow-white/5"
   };
   return (
-    <button className={`flex items-center justify-center gap-3 p-5 bg-fin-charcoal border border-gray-800 rounded-2xl transition-all hover:scale-[1.02] hover:shadow-xl group ${colors[color]}`}>
+    <button 
+      onClick={onClick} // <--- APLICAMOS EL CLICK AQUÍ
+      className={`flex items-center justify-center gap-3 p-5 bg-fin-charcoal border border-gray-800 rounded-2xl transition-all hover:scale-[1.02] hover:shadow-xl group ${colors[color]}`}
+    >
       <div className="transition-transform group-hover:scale-110">
         {React.cloneElement(icon, { size: 24 })}
       </div>
