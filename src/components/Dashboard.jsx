@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import Brand from './Brand';
+import ListaClientes from './ListaClientes';
 import NuevoClienteModal from './NuevoClienteModal';
+import NuevoPrestamoModal from './NuevoPrestamoModal';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
   CalendarDays, Settings, LogOut, UserPlus, FilePlus, ReceiptText 
@@ -9,10 +11,12 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard = ({ onLogout }) => {
+  const [activeTab, setActiveTab] = useState('resumen');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPrestamoModalOpen, setIsPrestamoModalOpen] = useState(false);
 
   // Datos para el gráfico (puedes reemplazarlos luego con datos del backend)
   const chartData = [
@@ -30,9 +34,8 @@ const Dashboard = ({ onLogout }) => {
       setData(response.data);
     } catch (err) {
       console.error("Error al obtener datos:", err);
-      // SI EL ERROR ES 401 (Token expirado), CERRAMOS SESIÓN
       if (err.response && err.response.status === 401) {
-        onLogout(); // Esto limpia el localStorage y te manda al Login
+        onLogout();
       } else {
         setError("No se pudo cargar la información financiera."); 
       }
@@ -69,11 +72,35 @@ const Dashboard = ({ onLogout }) => {
         onRefresh={fetchDashboardData} 
       />
 
+      <NuevoPrestamoModal 
+        isOpen={isPrestamoModalOpen} 
+        onClose={() => setIsPrestamoModalOpen(false)} 
+        onRefresh={fetchDashboardData} 
+      />
+
       {/* HEADER */}
       <header className="p-6 lg:px-10 flex justify-between items-center border-b border-gray-800 bg-fin-charcoal/30 sticky top-0 z-50 backdrop-blur-md">
-        <div className="flex flex-col">
-            <Brand size="sm" /> 
-            <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] -mt-4 ml-12">Tablero de Control</span>
+        <div className="flex items-center gap-8">
+            <div className="flex flex-col">
+                <Brand size="sm" /> 
+                <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] -mt-4 ml-12 italic"></span>
+            </div>
+
+            {/* NAVEGACIÓN DE SECCIONES */}
+            <nav className="hidden lg:flex gap-1 bg-fin-charcoal/50 p-1 rounded-xl border border-gray-800">
+                <button 
+                  onClick={() => setActiveTab('resumen')}
+                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'resumen' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
+                >
+                    RESUMEN
+                </button>
+                <button 
+                  onClick={() => setActiveTab('clientes')}
+                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'clientes' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
+                >
+                    CLIENTES
+                </button>
+            </nav>
         </div>
 
         <div className="flex items-center gap-6">
@@ -104,121 +131,126 @@ const Dashboard = ({ onLogout }) => {
         </div>
       </header>
 
-      {/* CONTENIDO PRINCIPAL */}
+      {/* CONTENIDO PRINCIPAL CON RENDERIZADO CONDICIONAL */}
       <main className="p-6 lg:p-10 max-w-[1600px] mx-auto">
-        <div className="mb-10">
-            <h2 className="text-4xl font-black tracking-tighter text-white italic">Panel General</h2>
-            <p className="text-fin-gray-text text-sm mt-1">Estado de la cartera de préstamos al {new Date().toLocaleDateString()}.</p>
-        </div>
+        
+        {activeTab === 'resumen' ? (
+          <>
+            <div className="mb-10">
+                <h2 className="text-4xl font-black tracking-tighter text-white italic">Panel General</h2>
+                <p className="text-fin-gray-text text-sm mt-1">Estado de la cartera de préstamos al {new Date().toLocaleDateString()}.</p>
+            </div>
 
-        {/* --- NUEVA SECCIÓN: ACCIONES RÁPIDAS --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-          <QuickActionBtn 
-            icon={<UserPlus />} 
-            title="Nuevo Cliente" 
-            color="cyan" 
-            onClick={() => setIsModalOpen(true)} 
-          />
-          <QuickActionBtn icon={<FilePlus />} title="Crear Préstamo" color="violet" />
-          <QuickActionBtn icon={<ReceiptText />} title="Registrar Pago" color="gray" />
-        </div>
+            {/* --- ACCIONES RÁPIDAS --- */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+              <QuickActionBtn 
+                icon={<UserPlus />} 
+                title="Nuevo Cliente" 
+                color="cyan" 
+                onClick={() => setIsModalOpen(true)} 
+              />
+              <QuickActionBtn 
+                icon={<FilePlus />} 
+                title="Crear Préstamo" 
+                color="violet" 
+                onClick={() => setIsPrestamoModalOpen(true)} 
+              />
+              <QuickActionBtn icon={<ReceiptText />} title="Registrar Pago" color="gray" />
+            </div>
 
-        {/* Grid de Tarjetas Principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          <StatCard 
-            title="SALDO EN CAJA" 
-            value={`$${metricas_financieras.saldo_caja_disponible.toLocaleString()}`}
-            icon={<DollarSign />}
-            color="cyan"
-            subtitle="Dinero líquido listo para prestar"
-          />
+            {/* Grid de Tarjetas Principales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+              <StatCard 
+                title="SALDO EN CAJA" 
+                value={`$${metricas_financieras.saldo_caja_disponible.toLocaleString()}`}
+                icon={<DollarSign />}
+                color="cyan"
+                subtitle="Dinero líquido listo para prestar"
+              />
+              <StatCard 
+                title="GANANCIA REAL" 
+                value={`$${metricas_financieras.rentabilidad_acumulada.toLocaleString()}`}
+                icon={<TrendingUp />}
+                color="violet"
+                subtitle="Suma de intereses y mora cobrados"
+              />
+              <StatCard 
+                title="CAPITAL PRESTADO" 
+                value={`$${metricas_financieras.capital_en_calle.toLocaleString()}`}
+                icon={<ArrowUpRight />}
+                color="gray"
+                subtitle="Monto base pendiente de cobro"
+              />
+              <StatCard 
+                title="% MORA ACTIVA" 
+                value={`${estado_cartera.tasa_mora_porcentaje}%`}
+                icon={<AlertCircle />}
+                color="red"
+                subtitle={`${estado_cartera.prestamos_en_mora} préstamos vencidos`}
+              />
+            </div>
 
-          <StatCard 
-            title="GANANCIA REAL" 
-            value={`$${metricas_financieras.rentabilidad_acumulada.toLocaleString()}`}
-            icon={<TrendingUp />}
-            color="violet"
-            subtitle="Suma de intereses y mora cobrados"
-          />
-
-          <StatCard 
-            title="CAPITAL PRESTADO" 
-            value={`$${metricas_financieras.capital_en_calle.toLocaleString()}`}
-            icon={<ArrowUpRight />}
-            color="gray"
-            subtitle="Monto base pendiente de cobro"
-          />
-
-          <StatCard 
-            title="% MORA ACTIVA" 
-            value={`${estado_cartera.tasa_mora_porcentaje}%`}
-            icon={<AlertCircle />}
-            color="red"
-            subtitle={`${estado_cartera.prestamos_en_mora} préstamos vencidos`}
-          />
-        </div>
-
-        {/* Grid Secundario */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* --- GRÁFICO REAL IMPLEMENTADO --- */}
-          <div className="lg:col-span-2 bg-fin-charcoal p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col group transition hover:border-fin-violet/40">
-              <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <TrendingUp className="text-fin-cyan" size={20} /> Tendencias de Crecimiento
-                  </h3>
-                  <div className="flex gap-2 text-sm text-gray-500">
-                      <span className="text-fin-cyan font-semibold">Historial</span>
-                      <span>Mensual</span>
+            {/* Grid Secundario */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-fin-charcoal p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col group transition hover:border-fin-violet/40">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <TrendingUp className="text-fin-cyan" size={20} /> Tendencias de Crecimiento
+                      </h3>
+                      <div className="flex gap-2 text-sm text-gray-500">
+                          <span className="text-fin-cyan font-semibold">Historial</span>
+                          <span>Mensual</span>
+                      </div>
+                  </div>
+                  <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#16181f', border: '1px solid #374151', borderRadius: '12px' }}
+                          itemStyle={{ color: '#22d3ee' }}
+                        />
+                        <Area type="monotone" dataKey="ingresos" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorIngresos)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
               </div>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#16181f', border: '1px solid #374151', borderRadius: '12px' }}
-                      itemStyle={{ color: '#22d3ee' }}
-                    />
-                    <Area type="monotone" dataKey="ingresos" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorIngresos)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-          </div>
 
-          {/* Operativo del Día */}
-          <div className="bg-fin-charcoal-light p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col transition hover:border-fin-violet/40">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-              <CalendarDays className="text-fin-violet h-5 w-5" />
-              Operaciones del Día
-            </h3>
-            <div className="space-y-5 flex-grow">
-              <div className="p-5 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40">
-                <span className="text-fin-gray-text text-xs uppercase font-bold tracking-widest">Cobros esperados hoy</span>
-                <p className="font-black text-3xl text-white mt-1">${operativo_hoy.cobros_pendientes_hoy.toLocaleString()}</p>
-              </div>
-              <div className="p-5 bg-fin-charcoal rounded-2xl border border-gray-700">
-                <span className="text-fin-gray-text text-xs uppercase font-bold tracking-widest">Cartera total de clientes</span>
-                <p className="font-black text-3xl text-white mt-1">{operativo_hoy.clientes_total}</p>
-              </div>
-              {/* Alerta de Mora */}
-              <div className="mt-2 p-4 bg-red-950/20 border border-red-900/50 rounded-2xl">
-                <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Alerta Crítica</p>
-                <p className="text-gray-300 text-xs leading-relaxed">
-                  Hay {estado_cartera.prestamos_en_mora} cuentas que requieren gestión de cobranza inmediata.
-                </p>
+              <div className="bg-fin-charcoal-light p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col transition hover:border-fin-violet/40">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                  <CalendarDays className="text-fin-violet h-5 w-5" />
+                  Operaciones del Día
+                </h3>
+                <div className="space-y-5 flex-grow">
+                  <div className="p-5 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40">
+                    <span className="text-fin-gray-text text-xs uppercase font-bold tracking-widest">Cobros esperados hoy</span>
+                    <p className="font-black text-3xl text-white mt-1">${operativo_hoy.cobros_pendientes_hoy.toLocaleString()}</p>
+                  </div>
+                  <div className="p-5 bg-fin-charcoal rounded-2xl border border-gray-700">
+                    <span className="text-fin-gray-text text-xs uppercase font-bold tracking-widest">Cartera total de clientes</span>
+                    <p className="font-black text-3xl text-white mt-1">{operativo_hoy.clientes_total}</p>
+                  </div>
+                  <div className="mt-2 p-4 bg-red-950/20 border border-red-900/50 rounded-2xl">
+                    <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Alerta Crítica</p>
+                    <p className="text-gray-300 text-xs leading-relaxed">
+                      Hay {estado_cartera.prestamos_en_mora} cuentas que requieren gestión de cobranza inmediata.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        ) : (
+          <ListaClientes />
+        )}
       </main>
     </div>
   );
@@ -234,7 +266,7 @@ const QuickActionBtn = ({ icon, title, color, onClick }) => {
   };
   return (
     <button 
-      onClick={onClick} // <--- APLICAMOS EL CLICK AQUÍ
+      onClick={onClick}
       className={`flex items-center justify-center gap-3 p-5 bg-fin-charcoal border border-gray-800 rounded-2xl transition-all hover:scale-[1.02] hover:shadow-xl group ${colors[color]}`}
     >
       <div className="transition-transform group-hover:scale-110">

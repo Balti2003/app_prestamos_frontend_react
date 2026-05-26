@@ -1,0 +1,185 @@
+import React, { useState, useEffect } from 'react';
+import { X, FilePlus, DollarSign, Calendar, Percent, Users, Save } from 'lucide-react';
+import api from '../api';
+
+const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh }) => {
+  const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    cliente: '',
+    monto: '',
+    tasa_interes: '20', // Porcentaje por defecto
+    cuotas: '1',
+    frecuencia: 'MENSUAL'
+  });
+
+  // Cargar clientes para el buscador
+  useEffect(() => {
+    if (isOpen) {
+      const fetchClientes = async () => {
+        try {
+          const res = await api.get('/clientes/');
+          setClientes(res.data);
+        } catch { console.error("Error cargando clientes"); }
+      };
+      fetchClientes();
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  // Cálculos en tiempo real
+  const montoNum = parseFloat(formData.monto) || 0;
+  const tasaNum = parseFloat(formData.tasa_interes) || 0;
+  const cuotasNum = parseInt(formData.cuotas) || 1;
+  
+  const totalDevolver = montoNum + (montoNum * (tasaNum / 100));
+  const valorCuota = totalDevolver / cuotasNum;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const hoy = new Date().toISOString().split('T')[0];
+
+    const payload = {
+        cliente: parseInt(formData.cliente),
+        monto_solicitado: parseFloat(formData.monto),
+        tasa_interes: parseFloat(formData.tasa_interes),
+        cuotas_totales: parseInt(formData.cuotas),  
+        frecuencia: formData.frecuencia.toLowerCase(),
+        fecha_inicio: hoy
+    };
+
+    try {
+        await api.post('/prestamos/', payload);
+        onRefresh();
+        onClose();
+        setFormData({ cliente: '', monto: '', tasa_interes: '20', cuotas: '1', frecuencia: 'mensual' });
+    } catch (err) {
+        if (err.response && err.response.data) {
+        console.error("Error detallado:", err.response.data);
+        const firstError = Object.values(err.response.data)[0];
+        alert("Error: " + firstError);
+        } else {
+        alert("Error al conectar con el servidor");
+        }
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-fin-dark-bg/80 backdrop-blur-sm" onClick={onClose}></div>
+
+      <div className="relative bg-fin-charcoal-light w-full max-w-2xl rounded-3xl border border-gray-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-fin-charcoal/50">
+          <h3 className="text-xl font-black italic text-white flex items-center gap-2">
+            <FilePlus className="text-fin-violet" /> EMITIR NUEVO PRÉSTAMO
+          </h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition"><X size={24} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          {/* Selección de Cliente */}
+          <div className="md:col-span-2 space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Seleccionar Cliente</label>
+            <div className="relative">
+              <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-fin-violet" size={18} />
+              <select 
+                required
+                className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 pl-12 pr-4 text-white outline-none focus:border-fin-violet transition-all appearance-none"
+                value={formData.cliente}
+                onChange={e => setFormData({...formData, cliente: e.target.value})}
+              >
+                <option value="">Buscar por nombre...</option>
+                {clientes.map(c => (
+                  <option key={c.id} value={c.id}>{c.nombre} {c.apellido} - DNI: {c.dni}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Monto y Tasa */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Monto a Entregar</label>
+            <ModalInput icon={<DollarSign />} type="number" placeholder="Ej: 50000" 
+              value={formData.monto} onChange={v => setFormData({...formData, monto: v})} />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Tasa de Interés (%)</label>
+            <ModalInput icon={<Percent />} type="number" placeholder="Ej: 20" 
+              value={formData.tasa_interes} onChange={v => setFormData({...formData, tasa_interes: v})} />
+          </div>
+
+          {/* Cuotas y Frecuencia */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Cantidad de Cuotas</label>
+            <ModalInput icon={<Calendar />} type="number" placeholder="Ej: 6" 
+              value={formData.cuotas} onChange={v => setFormData({...formData, cuotas: v})} />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Frecuencia de Cobro</label>
+            <select 
+              className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 px-4 text-white outline-none focus:border-fin-violet transition-all"
+              value={formData.frecuencia}
+              onChange={e => setFormData({...formData, frecuencia: e.target.value})}
+            >
+              <option value="diario">Diario</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensual">Mensual</option>
+            </select>
+          </div>
+
+          {/* PANEL DE PREVISIÓN (Calculadora) */}
+          <div className="md:col-span-2 bg-fin-dark-bg/50 border border-fin-violet/20 rounded-2xl p-6 mt-2">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-bold text-gray-400">RESUMEN DEL PRÉSTAMO</span>
+              <span className="text-[10px] bg-fin-violet/20 text-fin-violet px-2 py-1 rounded font-black tracking-tighter">PREVISIÓN</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold">Total a cobrar</p>
+                <p className="text-2xl font-black text-fin-cyan">${totalDevolver.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold">Valor por cuota</p>
+                <p className="text-2xl font-black text-fin-violet">${valorCuota.toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !formData.cliente || montoNum <= 0}
+            className="md:col-span-2 w-full bg-gradient-to-r from-fin-violet to-fin-cyan text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:opacity-90 shadow-neon-violet transition-all disabled:opacity-50 active:scale-[0.98]"
+          >
+            {loading ? "PROCESANDO..." : <><Save size={20} /> EMITIR PRÉSTAMO</>}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const ModalInput = ({ icon, type, placeholder, value, onChange }) => (
+  <div className="relative group">
+    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-fin-violet transition-colors">
+      {React.cloneElement(icon, { size: 18 })}
+    </div>
+    <input
+      required
+      type={type}
+      className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-600 outline-none focus:border-fin-violet focus:ring-1 focus:ring-fin-violet transition-all"
+      placeholder={placeholder}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+    />
+  </div>
+);
+
+export default NuevoPrestamoModal;
