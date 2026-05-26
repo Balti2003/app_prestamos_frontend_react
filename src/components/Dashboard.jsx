@@ -64,6 +64,12 @@ const Dashboard = ({ onLogout }) => {
     </div>
   );
 
+  // eslint-disable-next-line no-unused-vars
+  const abrirModalPagoConCliente = (cliente) => {
+    setActiveTab('resumen');
+    setIsPagoModalOpen(true);
+  };
+
   const { metricas_financieras, estado_cartera, operativo_hoy } = data;
 
   return (
@@ -262,7 +268,7 @@ const Dashboard = ({ onLogout }) => {
             </div>
           </>
         ) : (
-          <ListaClientes />
+          <ListaClientes onOpenPayment={abrirModalPagoConCliente} />
         )}
       </main>
     </div>

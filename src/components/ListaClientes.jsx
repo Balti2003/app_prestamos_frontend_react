@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
-import { Search, Phone, IdCard, ExternalLink, CreditCard } from 'lucide-react';
+import { Search, Phone, IdCard, ExternalLink } from 'lucide-react';
 import ClienteDetallePanel from './ClienteDetallePanel';
 
-const ListaClientes = () => {
+const ListaClientes = ({ onOpenPayment }) => {
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
@@ -39,6 +39,7 @@ const ListaClientes = () => {
       <ClienteDetallePanel 
         clienteId={selectedCliente} 
         onClose={() => setSelectedCliente(null)} 
+        onOpenPayment={onOpenPayment}
       />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -99,20 +100,11 @@ const ListaClientes = () => {
                   </td>
                   <td className="p-5">
                     <div className="flex justify-center gap-2">
-                      {/* Botón para ver Préstamos y Cobrar */}
-                      <button 
-                        onClick={() => setSelectedCliente(cliente.id)}
-                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-violet transition-all border border-transparent hover:border-fin-violet/30" 
-                        title="Ver Préstamos"
-                      >
-                        <CreditCard size={18} />
-                      </button>
-                      
                       {/* Botón para Ver Detalle Completo */}
                       <button 
                         onClick={() => setSelectedCliente(cliente.id)}
-                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-gray-400 hover:text-white transition-all"
-                        title="Ver Legajo"
+                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all"
+                        title="Ver Detalle Completo"
                       >
                         <ExternalLink size={18} />
                       </button>

@@ -45,8 +45,8 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       });
       onRefresh();
       onClose();
-    } catch {
-      alert("Error al registrar el pago.");
+    } catch (err) {
+      alert(err.response?.data?.error || "Error al registrar el pago");
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
         {/* Cabecera */}
         <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-fin-charcoal/50">
           <h3 className="text-xl font-black italic text-white flex items-center gap-2">
-            <ReceiptText className="text-fin-cyan" /> REGISTRAR COBRO
+            <ReceiptText className="text-fin-cyan" /> REGISTRAR PAGO
           </h3>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition"><X size={24} /></button>
         </div>
