@@ -4,6 +4,7 @@ import Brand from './Brand';
 import ListaClientes from './ListaClientes';
 import NuevoClienteModal from './NuevoClienteModal';
 import NuevoPrestamoModal from './NuevoPrestamoModal';
+import RegistrarPagoModal from './RegistrarPagoModal';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
   CalendarDays, Settings, LogOut, UserPlus, FilePlus, ReceiptText 
@@ -17,6 +18,7 @@ const Dashboard = ({ onLogout }) => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrestamoModalOpen, setIsPrestamoModalOpen] = useState(false);
+  const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
 
   // Datos para el gráfico (puedes reemplazarlos luego con datos del backend)
   const chartData = [
@@ -75,6 +77,12 @@ const Dashboard = ({ onLogout }) => {
       <NuevoPrestamoModal 
         isOpen={isPrestamoModalOpen} 
         onClose={() => setIsPrestamoModalOpen(false)} 
+        onRefresh={fetchDashboardData} 
+      />
+
+      <RegistrarPagoModal 
+        isOpen={isPagoModalOpen} 
+        onClose={() => setIsPagoModalOpen(false)} 
         onRefresh={fetchDashboardData} 
       />
 
@@ -155,7 +163,12 @@ const Dashboard = ({ onLogout }) => {
                 color="violet" 
                 onClick={() => setIsPrestamoModalOpen(true)} 
               />
-              <QuickActionBtn icon={<ReceiptText />} title="Registrar Pago" color="gray" />
+              <QuickActionBtn 
+                icon={<ReceiptText />} 
+                title="Registrar Pago" 
+                color="gray" 
+                onClick={() => setIsPagoModalOpen(true)} 
+              />
             </div>
 
             {/* Grid de Tarjetas Principales */}

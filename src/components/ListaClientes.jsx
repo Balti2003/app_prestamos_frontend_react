@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
 import { Search, Phone, IdCard, ExternalLink, CreditCard } from 'lucide-react';
+import ClienteDetallePanel from './ClienteDetallePanel';
 
 const ListaClientes = () => {
+  const [selectedCliente, setSelectedCliente] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,13 @@ const ListaClientes = () => {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Panel Lateral de Detalle */}
+      <ClienteDetallePanel 
+        clienteId={selectedCliente} 
+        onClose={() => setSelectedCliente(null)} 
+      />
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-black tracking-tighter italic text-white">CARTERA DE CLIENTES</h2>
@@ -90,10 +99,21 @@ const ListaClientes = () => {
                   </td>
                   <td className="p-5">
                     <div className="flex justify-center gap-2">
-                      <button className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-violet transition-all border border-transparent hover:border-fin-violet/30" title="Ver Préstamos">
+                      {/* Botón para ver Préstamos y Cobrar */}
+                      <button 
+                        onClick={() => setSelectedCliente(cliente.id)}
+                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-violet transition-all border border-transparent hover:border-fin-violet/30" 
+                        title="Ver Préstamos"
+                      >
                         <CreditCard size={18} />
                       </button>
-                      <button className="p-2 hover:bg-fin-charcoal-light rounded-lg text-gray-400 hover:text-white transition-all">
+                      
+                      {/* Botón para Ver Detalle Completo */}
+                      <button 
+                        onClick={() => setSelectedCliente(cliente.id)}
+                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-gray-400 hover:text-white transition-all"
+                        title="Ver Legajo"
+                      >
                         <ExternalLink size={18} />
                       </button>
                     </div>
