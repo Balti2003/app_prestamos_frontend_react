@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
-import { X, ReceiptText, DollarSign, Calendar, ArrowRight, Save } from 'lucide-react';
+import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare } from 'lucide-react';
 import api from '../api';
 
 const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
   const [clientes, setClientes] = useState([]);
+  const [cuotasDisponibles, setCuotasDisponibles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: Buscar cliente, 2: Detalle de pago
+  const [loadingCuotas, setLoadingCuotas] = useState(false);
+  const [step, setStep] = useState(1); // 1: Buscar cliente, 2: Elegir Cuota
   const [selectedCliente, setSelectedCliente] = useState(null);
-  
-  const [formData, setFormData] = useState({
-    monto_pago: '',
-    notas: ''
-  });
+  const [selectedCuota, setSelectedCuota] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -20,6 +18,8 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep(1);
       setSelectedCliente(null);
+      setCuotasDisponibles([]);
+      setSelectedCuota('');
     }
   }, [isOpen]);
 
@@ -27,21 +27,36 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     try {
       const res = await api.get('/clientes/');
       setClientes(res.data);
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Error cargando clientes", err); }
   };
 
-  const handleSelectCliente = (cliente) => {
+  const handleSelectCliente = async (cliente) => {
     setSelectedCliente(cliente);
+    setLoadingCuotas(true);
     setStep(2);
+    try {
+      // Llamamos al nuevo endpoint de cuotas secuenciales
+      const res = await api.get(`/clientes/${cliente.id}/cuotas_cobrables/`);
+      setCuotasDisponibles(res.data);
+      if (res.data.length > 0) {
+        // Pre-seleccionamos la primera opción disponible
+        setSelectedCuota(res.data[0].cuota_id);
+      }
+    } catch (err) {
+      console.error("Error al obtener cuotas cobrables", err);
+    } finally {
+      setLoadingCuotas(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!selectedCuota) return;
     setLoading(true);
     try {
-      await api.post(`/prestamos/registrar_pago/`, {
-        cliente_id: selectedCliente.id,
-        monto: formData.monto_pago,
+      // Enviamos el ID de la cuota exacto al nuevo endpoint
+      await api.post(`/prestamos/registrar_pago_exacto/`, {
+        cuota_id: selectedCuota
       });
       onRefresh();
       onClose();
@@ -51,6 +66,9 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       setLoading(false);
     }
   };
+
+  // Buscamos el objeto de la cuota seleccionada para mostrar el precio en pantalla
+  const cuotaActivaInfo = cuotasDisponibles.find(c => c.cuota_id === parseInt(selectedCuota));
 
   if (!isOpen) return null;
 
@@ -70,10 +88,8 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
 
         <div className="p-8">
           {step === 1 ? (
-            <div className="space-y-6">
-              <div className="text-center">
-                <p className="text-gray-400 text-sm">Selecciona el cliente que realiza el pago</p>
-              </div>
+            <div className="space-y-4">
+              <p className="text-gray-400 text-sm text-center">Selecciona el cliente para ver sus cuotas habilitadas</p>
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                 {clientes.map(c => (
                   <button 
@@ -97,34 +113,63 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6 animate-in slide-in-from-right-4">
-              <div className="bg-fin-dark-bg/50 p-4 rounded-2xl border border-fin-cyan/20 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-fin-cyan/20 flex items-center justify-center text-fin-cyan font-black">
+              <div className="bg-fin-dark-bg/50 p-4 rounded-2xl border border-gray-800 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-fin-violet/20 flex items-center justify-center text-fin-violet font-black">
                   {selectedCliente.nombre[0]}
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Cobrando a:</p>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Cliente</p>
                   <p className="text-lg font-black text-white">{selectedCliente.nombre} {selectedCliente.apellido}</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="relative group">
-                  <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-fin-cyan" size={20} />
-                  <input 
-                    required
-                    type="number"
-                    placeholder="Monto a cobrar"
-                    className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-4 pl-12 pr-4 text-white text-xl font-black outline-none focus:border-fin-cyan transition-all"
-                    value={formData.monto_pago}
-                    onChange={e => setFormData({...formData, monto_pago: e.target.value})}
-                  />
+              {loadingCuotas ? (
+                <p className="text-center text-xs text-fin-cyan animate-pulse py-4 font-bold">Buscando plan de pagos...</p>
+              ) : cuotasDisponibles.length === 0 ? (
+                <div className="text-center py-6 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                  <p className="text-red-400 text-sm font-bold">Este cliente no registra cuotas pendientes.</p>
                 </div>
-                
-                <div className="flex items-center gap-2 text-xs text-gray-500 px-1">
-                  <Calendar size={14} />
-                  <span>Fecha de operación: {new Date().toLocaleDateString()}</span>
+              ) : (
+                <div className="space-y-5">
+                  {/* Selector de Préstamo / Cuota */}
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Seleccionar Cuota Habilitada</label>
+                    <select 
+                      className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3 px-4 text-white font-medium outline-none focus:border-fin-violet transition-all"
+                      value={selectedCuota}
+                      onChange={e => setSelectedCuota(e.target.value)}
+                    >
+                      {cuotasDisponibles.map(c => (
+                        <option key={c.cuota_id} value={c.cuota_id}>
+                          {c.prestamo_nombre} (Cuota #{c.numero_cuota})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Input del Monto Bloqueado */}
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Monto Neto Obligatorio</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-fin-cyan" size={20} />
+                      <input 
+                        disabled
+                        type="text"
+                        className="w-full bg-fin-charcoal/50 border border-gray-800 text-gray-400 rounded-xl py-4 pl-12 pr-4 text-xl font-black cursor-not-allowed"
+                        value={cuotaActivaInfo ? `$${parseFloat(cuotaActivaInfo.monto).toLocaleString()}` : '$0'}
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-600 font-bold uppercase tracking-tight">
+                      * El sistema no acepta importes fraccionados ni sobrepagos.
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-xs text-gray-500 px-1">
+                    <Calendar size={14} />
+                    <span>Fecha contable: {new Date().toLocaleDateString()}</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex gap-3">
                 <button 
@@ -136,10 +181,10 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                 </button>
                 <button 
                   type="submit"
-                  disabled={loading}
-                  className="flex-[2] bg-gradient-to-r from-fin-violet to-fin-cyan text-white py-4 rounded-xl font-black shadow-neon-cyan flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+                  disabled={loading || cuotasDisponibles.length === 0}
+                  className="flex-[2] bg-gradient-to-r from-fin-violet to-fin-cyan text-white py-4 rounded-xl font-black shadow-neon-cyan flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  {loading ? "PROCESANDO..." : <><Save size={20} /> CONFIRMAR PAGO</>}
+                  {loading ? "LIQUIDANDO..." : <><CheckSquare size={18} /> REALZAR COBRO</>}
                 </button>
               </div>
             </form>

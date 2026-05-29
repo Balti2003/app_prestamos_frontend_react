@@ -5,6 +5,7 @@ import ListaClientes from './ListaClientes';
 import NuevoClienteModal from './NuevoClienteModal';
 import NuevoPrestamoModal from './NuevoPrestamoModal';
 import RegistrarPagoModal from './RegistrarPagoModal';
+import HistorialMovimientos from './HistorialMovimientos';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
   CalendarDays, Settings, LogOut, UserPlus, FilePlus, ReceiptText 
@@ -114,6 +115,12 @@ const Dashboard = ({ onLogout }) => {
                 >
                     CLIENTES
                 </button>
+                <button 
+                  onClick={() => setActiveTab('movimientos')}
+                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'movimientos' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
+                >
+                    MOVIMIENTOS
+                </button>
             </nav>
         </div>
 
@@ -145,10 +152,10 @@ const Dashboard = ({ onLogout }) => {
         </div>
       </header>
 
-      {/* CONTENIDO PRINCIPAL CON RENDERIZADO CONDICIONAL */}
+      {/* CONTENIDO PRINCIPAL CON RENDERIZADO CONDICIONAL TRIPLE */}
       <main className="p-6 lg:p-10 max-w-[1600px] mx-auto">
         
-        {activeTab === 'resumen' ? (
+        {activeTab === 'resumen' && (
           <>
             <div className="mb-10">
                 <h2 className="text-4xl font-black tracking-tighter text-white italic">Panel General</h2>
@@ -267,9 +274,17 @@ const Dashboard = ({ onLogout }) => {
               </div>
             </div>
           </>
-        ) : (
+        )}
+
+        {/* --- NUEVA EVALUACIÓN CONDICIONAL PARA CLIENTES Y MOVIMIENTOS --- */}
+        {activeTab === 'clientes' && (
           <ListaClientes onOpenPayment={abrirModalPagoConCliente} />
         )}
+
+        {activeTab === 'movimientos' && (
+          <HistorialMovimientos />
+        )}
+
       </main>
     </div>
   );
