@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpCircle, ArrowDownCircle, Calendar, Filter } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Calendar, Filter, ReceiptText, Download } from 'lucide-react';
 import api from '../api';
 
 const HistorialMovimientos = () => {
   const [movimientos, setMovimientos] = useState([]);
   const [filteredMovimientos, setFilteredMovimientos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [descargando, setDescargando] = useState(null);
   
-  // Estados para los filtros
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
 
@@ -16,20 +16,16 @@ const HistorialMovimientos = () => {
     fetchMovimientos();
   }, []);
 
-  // Cada vez que cambien las fechas o los movimientos, filtramos
   useEffect(() => {
     let resultado = movimientos;
-
     if (fechaDesde) {
       resultado = resultado.filter(m => new Date(m.fecha) >= new Date(fechaDesde));
     }
     if (fechaHasta) {
-      // Ajustamos fechaHasta al final del día para que incluya hoy
       const hasta = new Date(fechaHasta);
       hasta.setHours(23, 59, 59);
       resultado = resultado.filter(m => new Date(m.fecha) <= hasta);
     }
-
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilteredMovimientos(resultado);
   }, [fechaDesde, fechaHasta, movimientos]);
@@ -43,6 +39,28 @@ const HistorialMovimientos = () => {
       console.error("Error al cargar movimientos", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDescargarRecibo = async (cuotaId) => {
+    if (!cuotaId) return;
+    setDescargando(cuotaId);
+    try {
+      const response = await api.get(`/cuotas/${cuotaId}/generar_recibo/`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Recibo_Reimpreso_${cuotaId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert("No se pudo regenerar el recibo. Verifique que la cuota exista.");
+    } finally {
+      setDescargando(null);
     }
   };
 
@@ -96,6 +114,7 @@ const HistorialMovimientos = () => {
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Detalle de Operación</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Tipo</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Monto</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Recibo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
@@ -127,10 +146,29 @@ const HistorialMovimientos = () => {
                       {m.tipo === 'ingreso' ? '+' : '-'} ${parseFloat(m.monto).toLocaleString()}
                     </span>
                   </td>
+                  <td className="p-5 text-center">
+                    {/* Solo mostramos el botón si es un ingreso (cobro) y tenemos el cuota_id */}
+                    {m.tipo === 'ingreso' && m.cuota_id ? (
+                      <button 
+                        onClick={() => handleDescargarRecibo(m.cuota_id)}
+                        disabled={descargando === m.cuota_id}
+                        className={`p-2 rounded-xl transition-all ${
+                          descargando === m.cuota_id 
+                          ? 'bg-gray-800 text-gray-600 animate-pulse' 
+                          : 'bg-fin-cyan/10 text-fin-cyan hover:bg-fin-cyan hover:text-white border border-fin-cyan/20'
+                        }`}
+                        title="Reimprimir Comprobante"
+                      >
+                        {descargando === m.cuota_id ? <Download size={16} /> : <ReceiptText size={16} />}
+                      </button>
+                    ) : (
+                      <span className="text-gray-700">-</span>
+                    )}
+                  </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="4" className="p-20 text-center text-gray-600 italic text-sm">
+                  <td colSpan="5" className="p-20 text-center text-gray-600 italic text-sm">
                     No se encontraron movimientos en este rango de fechas.
                   </td>
                 </tr>
