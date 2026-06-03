@@ -74,7 +74,8 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
 
     try {
       const response = await api.post(`/prestamos/registrar_pago_exacto/`, {
-        cuota_id: selectedCuota
+        cuota_id: selectedCuota,
+        monto: cuotaActivaInfo.monto
       });
 
       // Guardamos el ID que nos dio el backend para el PDF

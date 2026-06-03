@@ -10,7 +10,7 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh }) => {
     monto: '',
     tasa_interes: '20', // Porcentaje por defecto
     cuotas: '1',
-    frecuencia: 'MENSUAL'
+    frecuencia: 'mensual'
   });
 
   // Cargar clientes para el buscador
