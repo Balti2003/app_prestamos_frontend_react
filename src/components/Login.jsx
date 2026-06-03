@@ -63,7 +63,6 @@ const Login = ({ onLogin }) => {
         <div className="relative z-10 flex gap-6 text-sm text-gray-500">
           <span>Términos y Condiciones</span>
           <span>Soporte Técnico</span>
-          <span>Financia-Soft v1.0</span>
         </div>
       </div>
 

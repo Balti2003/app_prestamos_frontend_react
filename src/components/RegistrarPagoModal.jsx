@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare } from 'lucide-react';
+import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare, AlertCircle } from 'lucide-react';
 import api from '../api';
 
 const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
@@ -12,6 +12,8 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
   const [selectedCuota, setSelectedCuota] = useState('');
   const [pagoExitoso, setPagoExitoso] = useState(false);
   const [idCuotaPagada, setIdCuotaPagada] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [selectedCuotaObj, setSelectedCuotaObj] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -26,6 +28,13 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       setIdCuotaPagada(null);
     }
   }, [isOpen]);
+
+  // Cuando cambia el select:
+  useEffect(() => {
+      const objetoEncontrado = cuotasDisponibles.find(c => c.cuota_id === parseInt(selectedCuota));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedCuotaObj(objetoEncontrado);
+  }, [selectedCuota, cuotasDisponibles]);
 
   const fetchClientes = async () => {
     try {
@@ -51,6 +60,11 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     } finally {
       setLoadingCuotas(false);
     }
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const handleSelectCuota = (id) => {
+    setSelectedCuota(id);
   };
 
   const handleSubmit = async (e) => {
@@ -95,6 +109,14 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
+  const checkMora = (fechaVencimiento, pagada) => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Limpiamos horas para comparar solo fechas
+    const vencimiento = new Date(fechaVencimiento);
+    return vencimiento < hoy && !pagada;
+  };
+
   // Buscamos el objeto de la cuota seleccionada para mostrar el precio en pantalla
   const cuotaActivaInfo = cuotasDisponibles.find(c => c.cuota_id === parseInt(selectedCuota));
 
@@ -115,8 +137,8 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
         </div>
 
         <div className="p-8">
-          {/* LÓGICA DE PANTALLA DE ÉXITO (PUNTO 3) */}
           {pagoExitoso ? (
+            /* PANTALLA DE ÉXITO */
             <div className="py-10 flex flex-col items-center text-center animate-in zoom-in duration-300">
               <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-6 shadow-neon-green">
                 <CheckSquare size={40} />
@@ -144,8 +166,8 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
               </div>
             </div>
           ) : (
-            /* FORMULARIO ORIGINAL (PASOS 1 Y 2) */
             step === 1 ? (
+              /* PASO 1: SELECCIÓN DE CLIENTE */
               <div className="space-y-4">
                 <p className="text-gray-400 text-sm text-center">Selecciona el cliente para ver sus cuotas habilitadas</p>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -170,6 +192,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                 </div>
               </div>
             ) : (
+              /* PASO 2: SELECCIÓN DE CUOTA Y MONTO */
               <form onSubmit={handleSubmit} className="space-y-6 animate-in slide-in-from-right-4">
                 <div className="bg-fin-dark-bg/50 p-4 rounded-2xl border border-gray-800 flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-fin-violet/20 flex items-center justify-center text-fin-violet font-black">
@@ -192,31 +215,72 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                     <div className="flex flex-col space-y-2">
                       <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Seleccionar Cuota Habilitada</label>
                       <select 
-                        className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3 px-4 text-white font-medium outline-none focus:border-fin-violet transition-all"
+                        className="w-full bg-fin-charcoal border border-gray-800 rounded-xl py-3 px-4 text-white font-medium outline-none focus:border-fin-violet transition-all"
                         value={selectedCuota}
                         onChange={e => setSelectedCuota(e.target.value)}
                       >
-                        {cuotasDisponibles.map(c => (
-                          <option key={c.cuota_id} value={c.cuota_id}>
-                            {c.prestamo_nombre} (Cuota #{c.numero_cuota})
-                          </option>
-                        ))}
+                        {cuotasDisponibles.map(c => {
+                          const hoy = new Date();
+                          hoy.setHours(0,0,0,0);
+                          const vencimiento = new Date(c.fecha_vencimiento);
+                          const estaVencida = vencimiento < hoy;
+
+                          return (
+                            <option key={c.cuota_id} value={c.cuota_id}>
+                              {c.prestamo_nombre} - Cuota #{c.numero_cuota} {estaVencida ? '(¡VENCIDA!)' : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 
+                    {/* DETALLE DE MORA (SE MUESTRA SI HAY ATRASO) */}
+                    {cuotaActivaInfo?.dias_atraso > 0 && (
+                      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl space-y-2 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center gap-1">
+                            <AlertCircle size={12} /> Atraso detectado
+                          </span>
+                          <span className="text-xs font-bold text-red-500">{cuotaActivaInfo.dias_atraso} días</span>
+                        </div>
+                        <div className="flex justify-between items-center border-t border-red-500/10 pt-2">
+                          <span className="text-xs text-gray-400 font-bold">RECARGO POR MORA:</span>
+                          <span className="text-sm font-black text-red-500">+ ${parseFloat(cuotaActivaInfo.mora).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-col space-y-2">
-                      <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Monto Neto Obligatorio</label>
+                      <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Monto Total a Cobrar</label>
                       <div className="relative">
                         <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-fin-cyan" size={20} />
                         <input 
                           disabled
                           type="text"
-                          className="w-full bg-fin-charcoal/50 border border-gray-800 text-gray-400 rounded-xl py-4 pl-12 pr-4 text-xl font-black cursor-not-allowed"
-                          value={cuotaActivaInfo ? `$${parseFloat(cuotaActivaInfo.monto).toLocaleString()}` : '$0'}
+                          // El estilo cambiará a rojo automáticamente si hay días de atraso
+                          className={`w-full bg-fin-charcoal/50 border rounded-xl py-4 pl-12 pr-4 text-xl font-black cursor-not-allowed transition-colors duration-300 ${
+                            cuotaActivaInfo?.dias_atraso > 0 
+                              ? 'border-red-500/50 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.1)]' 
+                              : 'border-gray-800 text-gray-400'
+                          }`}
+                          // Mostramos el monto total que ya incluye la mora calculada en el servidor
+                          value={cuotaActivaInfo ? `$${parseFloat(cuotaActivaInfo.monto).toLocaleString('es-AR')}` : '$0'}
                         />
+                        {cuotaActivaInfo?.dias_atraso > 0 && (
+                          <div className="flex justify-between items-center px-2 animate-in fade-in slide-in-from-top-1">
+                            <span className="text-[10px] font-bold text-red-500/80 uppercase">
+                              Incluye multa por {cuotaActivaInfo.dias_atraso} días de atraso
+                            </span>
+                            <span className="text-[10px] font-black text-red-500">
+                              + ${parseFloat(cuotaActivaInfo.mora).toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <p className="text-[10px] text-gray-600 font-bold uppercase tracking-tight">
-                        * El sistema no acepta importes fraccionados ni sobrepagos.
+                        {cuotaActivaInfo?.dias_atraso > 0 
+                          ? "* El monto incluye capital + intereses punitorios por mora."
+                          : "* El sistema no acepta importes fraccionados ni sobrepagos."}
                       </p>
                     </div>
                     

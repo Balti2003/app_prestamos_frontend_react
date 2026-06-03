@@ -82,25 +82,50 @@ const ListaClientes = ({ onOpenPayment }) => {
                       </div>
                       <div>
                         <p className="font-bold text-white capitalize">{cliente.nombre} {cliente.apellido}</p>
-                        <p className="text-[10px] text-gray-500 uppercase font-black">Cliente Activo</p>
+                        
+                        {/* --- SINCRONIZACIÓN DE MORA (PUNTO 3) --- */}
+                        {cliente.tiene_mora ? (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                            </span>
+                            <p className="text-[10px] text-red-400 uppercase font-black tracking-tighter animate-pulse">
+                              PAGO ATRASADO
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-gray-500 uppercase font-black tracking-tighter">
+                            Cliente al día
+                          </p>
+                        )}
                       </div>
                     </div>
                   </td>
+
                   <td className="p-5 text-sm text-gray-300 font-mono italic">
                     <div className="flex items-center gap-2">
                       <IdCard size={14} className="text-gray-600" />
                       {cliente.dni}
                     </div>
                   </td>
+
                   <td className="p-5 text-sm text-gray-300">
                     <div className="flex items-center gap-2">
                       <Phone size={14} className="text-gray-600" />
                       {cliente.telefono || 'Sin teléfono'}
                     </div>
                   </td>
-                  <td className="p-5">
-                    <div className="flex justify-center gap-2">
-                      {/* Botón para Ver Detalle Completo */}
+
+                  <td className="p-5 text-center">
+                    {/* Agregué un indicador visual de estado rápido en la columna de acciones o estado */}
+                    <div className="flex items-center justify-center gap-3">
+                      {cliente.tiene_mora && (
+                        <div className="bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-red-500 text-[9px] font-bold">
+                          MOROSO
+                        </div>
+                      )}
+                      
                       <button 
                         onClick={() => setSelectedCliente(cliente.id)}
                         className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all"
