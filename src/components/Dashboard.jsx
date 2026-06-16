@@ -6,6 +6,7 @@ import NuevoClienteModal from './NuevoClienteModal';
 import NuevoPrestamoModal from './NuevoPrestamoModal';
 import RegistrarPagoModal from './RegistrarPagoModal';
 import HistorialMovimientos from './HistorialMovimientos';
+import DetalleClientePerfil from './DetalleClientePerfil';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
   CalendarDays, Settings, LogOut, UserPlus, FilePlus, ReceiptText 
@@ -20,6 +21,7 @@ const Dashboard = ({ onLogout }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrestamoModalOpen, setIsPrestamoModalOpen] = useState(false);
   const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
+  const [selectedClienteId, setSelectedClienteId] = useState(null);
 
   // Datos para el gráfico (puedes reemplazarlos luego con datos del backend)
   const chartData = [
@@ -276,9 +278,23 @@ const Dashboard = ({ onLogout }) => {
           </>
         )}
 
-        {/* --- NUEVA EVALUACIÓN CONDICIONAL PARA CLIENTES Y MOVIMIENTOS --- */}
         {activeTab === 'clientes' && (
-          <ListaClientes onOpenPayment={abrirModalPagoConCliente} />
+          selectedClienteId ? (
+            /* Capa 1: Si hay un cliente seleccionado, se despliega su Perfil Avanzado */
+            <DetalleClientePerfil 
+              clienteId={selectedClienteId} 
+              onVolver={() => setSelectedClienteId(null)} // Al volver, limpia el ID y regresa a la lista
+              onDescargarRecibo={(cuotaId) => {
+                window.open(`http://localhost:8000/api/cuotas/${cuotaId}/generar_recibo/`, '_blank');
+              }}
+            />
+          ) : (
+            /* Capa 2: Si no hay ID, se muestra la lista general de siempre */
+            <ListaClientes 
+              onOpenPayment={abrirModalPagoConCliente} 
+              onVerPerfil={(id) => setSelectedClienteId(id)} // <-- Le pasamos este disparador a la lista
+            />
+          )
         )}
 
         {activeTab === 'movimientos' && (

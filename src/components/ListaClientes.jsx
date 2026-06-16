@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
-import { Search, Phone, IdCard, ExternalLink } from 'lucide-react';
+import { Search, Phone, IdCard, ExternalLink, Eye } from 'lucide-react';
 import ClienteDetallePanel from './ClienteDetallePanel';
 
-const ListaClientes = ({ onOpenPayment }) => {
+const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
@@ -31,7 +31,7 @@ const ListaClientes = ({ onOpenPayment }) => {
     c.apellido.toLowerCase().includes(busqueda.toLowerCase()) ||
     c.dni.includes(busqueda)
   );
-
+  
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       
@@ -81,7 +81,13 @@ const ListaClientes = ({ onOpenPayment }) => {
                         {cliente.nombre[0]}{cliente.apellido[0]}
                       </div>
                       <div>
-                        <p className="font-bold text-white capitalize">{cliente.nombre} {cliente.apellido}</p>
+                        {/* Hacemos que el nombre también sea un enlace directo al Perfil Detallado */}
+                        <button
+                          onClick={() => onVerPerfil(cliente.id)}
+                          className="font-bold text-white capitalize hover:text-fin-violet transition-colors text-left focus:outline-none"
+                        >
+                          {cliente.nombre} {cliente.apellido}
+                        </button>
                         
                         {/* --- SINCRONIZACIÓN DE MORA (PUNTO 3) --- */}
                         {cliente.tiene_mora ? (
@@ -118,18 +124,27 @@ const ListaClientes = ({ onOpenPayment }) => {
                   </td>
 
                   <td className="p-5 text-center">
-                    {/* Agregué un indicador visual de estado rápido en la columna de acciones o estado */}
-                    <div className="flex items-center justify-center gap-3">
+                    <div className="flex items-center justify-center gap-2">
                       {cliente.tiene_mora && (
-                        <div className="bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-red-500 text-[9px] font-bold">
+                        <div className="bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-red-500 text-[9px] font-bold mr-1">
                           MOROSO
                         </div>
                       )}
                       
+                      {/* ACCIÓN NUEVA: Botón para saltar al Expediente Completo */}
+                      <button 
+                        onClick={() => onVerPerfil(cliente.id)}
+                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-cyan hover:text-white transition-all"
+                        title="Ver Expediente y Comportamiento Histórico"
+                      >
+                        <Eye size={18} />
+                      </button>
+
+                      {/* Tu botón original de Panel Lateral */}
                       <button 
                         onClick={() => setSelectedCliente(cliente.id)}
                         className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all"
-                        title="Ver Detalle Completo"
+                        title="Ver Detalle Rápido"
                       >
                         <ExternalLink size={18} />
                       </button>
