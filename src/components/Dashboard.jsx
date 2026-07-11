@@ -7,9 +7,10 @@ import NuevoPrestamoModal from './NuevoPrestamoModal';
 import RegistrarPagoModal from './RegistrarPagoModal';
 import HistorialMovimientos from './HistorialMovimientos';
 import DetalleClientePerfil from './DetalleClientePerfil';
+import MiPerfilUsuario from './MiPerfilUsuario';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
-  CalendarDays, Settings, LogOut, UserPlus, FilePlus, ReceiptText 
+  CalendarDays, LogOut, UserPlus, FilePlus, ReceiptText 
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -52,6 +53,7 @@ const Dashboard = ({ onLogout }) => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDashboardData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return (
@@ -99,7 +101,13 @@ const Dashboard = ({ onLogout }) => {
       <header className="p-6 lg:px-10 flex justify-between items-center border-b border-gray-800 bg-fin-charcoal/30 sticky top-0 z-50 backdrop-blur-md">
         <div className="flex items-center gap-8">
             <div className="flex flex-col">
-                <Brand size="sm" /> 
+                <Brand 
+                  size="md" // o el tamaño que ya estés usando en el Header
+                  onClick={() => {
+                    setSelectedClienteId(null); // Reseteamos el expediente abierto
+                    setActiveTab('resumen');    // Forzamos la redirección al Dashboard (Home)
+                  }} 
+                />
                 <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] -mt-4 ml-12 italic"></span>
             </div>
 
@@ -123,6 +131,7 @@ const Dashboard = ({ onLogout }) => {
                 >
                     MOVIMIENTOS
                 </button>
+
             </nav>
         </div>
 
@@ -133,9 +142,9 @@ const Dashboard = ({ onLogout }) => {
             </div>
 
             <div className="flex gap-2">
-                <button className="bg-fin-charcoal-light p-2.5 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-all hover:border-fin-violet/50 shadow-sm">
+                {/* <button className="bg-fin-charcoal-light p-2.5 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-all hover:border-fin-violet/50 shadow-sm">
                     <Settings size={18}/>
-                </button>
+                </button> */}
                 <button 
                     onClick={onLogout}
                     className="bg-fin-charcoal-light p-2.5 rounded-xl border border-gray-800 text-red-400 hover:bg-red-950/20 hover:border-red-900 transition-all shadow-sm group"
@@ -147,7 +156,19 @@ const Dashboard = ({ onLogout }) => {
 
             <div className="relative group">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-fin-violet to-fin-cyan flex items-center justify-center font-black text-white shadow-neon-cyan active:scale-95 transition-transform cursor-pointer">
-                    BL
+                    <button 
+                      onClick={() => {
+                        setSelectedClienteId(null); // Reseteamos por si estaba viendo un expediente de cliente
+                        setActiveTab('mi-perfil');  // Activamos la pantalla del operador
+                      }}
+                      className={`relative w-11 h-11 rounded-xl bg-black border flex items-center justify-center font-bold text-sm text-white transition-all focus:outline-none ${
+                        activeTab === 'mi-perfil' 
+                          ? 'border-fin-violet shadow-neon-violet ring-1 ring-fin-violet' 
+                          : 'border-gray-700 hover:border-gray-500 shadow-lg shadow-cyan-500/5'
+                      }`}
+                    >
+                      BL
+                    </button>
                 </div>
                 <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 border-2 border-fin-dark-bg rounded-full"></div>
             </div>
@@ -299,6 +320,12 @@ const Dashboard = ({ onLogout }) => {
 
         {activeTab === 'movimientos' && (
           <HistorialMovimientos />
+        )}
+
+        {activeTab === 'mi-perfil' && (
+          <MiPerfilUsuario 
+            onVolverALaHome={() => setActiveTab('resumen')} 
+          />
         )}
 
       </main>

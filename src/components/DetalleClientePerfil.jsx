@@ -216,15 +216,82 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         
         {/* PESTAÑA: PRÉSTAMOS ACTIVOS */}
         {activeTab === 'activos' && (
-          <div className="p-4">
+          <div className="p-6">
             {prestamos_activos?.length === 0 ? (
               <div className="text-center py-8 text-gray-500 text-sm">
                 Sin deudas vigentes ni préstamos activos.
               </div>
             ) : (
-              <div className="text-sm p-2 text-gray-400">
-                {/* Tu mapeo original de préstamos activos va acá adentro */}
-                <p className="text-xs text-gray-400 italic">Lista de préstamos en curso...</p>
+              <div className="grid grid-cols-1 gap-6">
+                {prestamos_activos.map((prestamo) => {
+                  const montoNumeric = parseFloat(prestamo.monto_solicitado);
+                  const montoFormateado = !isNaN(montoNumeric) 
+                    ? `$${montoNumeric.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                    : '—';
+
+                  const montoCuotaNumeric = parseFloat(prestamo.monto_cuota);
+                  const montoCuotaFormateado = !isNaN(montoCuotaNumeric)
+                    ? `$${montoCuotaNumeric.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                    : '—';
+
+                  return (
+                    <div key={prestamo.id} className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 space-y-4">
+                      
+                      {/* Encabezado del Préstamo */}
+                      <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                        <div>
+                          <span className="text-xs font-bold text-fin-violet font-mono uppercase tracking-wider">
+                            Contrato #{prestamo.id}
+                          </span>
+                          <h4 className="text-lg font-black text-white mt-0.5">
+                            Préstamo Activo
+                          </h4>
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                          prestamo.estado === 'mora' 
+                            ? 'bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse' 
+                            : 'bg-fin-cyan/10 text-fin-cyan border border-fin-cyan/20'
+                        }`}>
+                          {prestamo.estado === 'mora' ? 'En Mora' : 'Al día'}
+                        </span>
+                      </div>
+
+                      {/* Fila de Métricas Reales del Préstamo */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500 font-bold text-[10px] uppercase tracking-wider">Monto Otorgado</p>
+                          <p className="text-white font-mono font-bold mt-0.5">
+                            {montoFormateado}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-bold text-[10px] uppercase tracking-wider">Valor de Cuota</p>
+                          <p className="text-fin-cyan font-mono font-bold mt-0.5">
+                            {montoCuotaFormateado}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-bold text-[10px] uppercase tracking-wider">Progreso de Pagos</p>
+                          <p className="text-gray-300 mt-0.5 font-medium">
+                            {prestamo.cuotas_pagadas} / {prestamo.cuotas_totales} <span className="text-xs text-gray-500 font-normal">pagas</span>
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-bold text-[10px] uppercase tracking-wider">Estado de cuenta</p>
+                          <p className="text-gray-300 mt-0.5 capitalize font-medium">
+                            {prestamo.estado}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Recordatorio de uso */}
+                      <p className="text-[11px] text-gray-500 italic pt-2 border-t border-gray-800/40">
+                        * Para asentar cobros o verificar las cuotas individuales de este contrato, utilizá el Panel Lateral Rápido desde la lista general.
+                      </p>
+
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -255,7 +322,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                       <td className="p-4 font-mono text-xs text-fin-violet">#{pago.prestamo_id}</td>
                       <td className="p-4 font-medium">Cuota {pago.numero_cuota}</td>
                       <td className="p-4 text-xs text-gray-400">
-                        {new Date(pago.fecha_pago_real).toLocaleDateString('es-AR')}
+                        {new Date(pago.fecha_pago_real).toLocaleDateString('es-AR', { timeZone: 'UTC' })}
                       </td>
                       <td className="p-4 text-green-400 font-semibold">
                         ${parseFloat(pago.monto_total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
