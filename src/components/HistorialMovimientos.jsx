@@ -105,19 +105,20 @@ const HistorialMovimientos = () => {
       </div>
 
       {/* Tabla */}
-      <div className="bg-fin-charcoal-light rounded-3xl border border-gray-800 overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      <div className="bg-fin-charcoal rounded-3xl border border-gray-800 overflow-hidden w-full">
+        <div className="w-full overflow-x-auto">          
+          <table className="text-left border-collapse min-w-[850px] lg:w-full">
             <thead>
-              <tr className="bg-fin-charcoal/50 border-b border-gray-800">
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Fecha y Hora</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Detalle de Operación</th>
+              <tr className="border-b border-gray-800 bg-gray-900/30 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                {/* Le damos un ancho base a la columna del detalle para que el texto no se amontone hacia abajo */}
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest min-w-[150px]">Fecha y Hora</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest min-w-[320px]">Detalle de Operación</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Tipo</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Monto</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Recibo</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800/50">
+            <tbody className="divide-y divide-gray-800/60 text-sm text-gray-200">
               {filteredMovimientos.length > 0 ? filteredMovimientos.map((m) => (
                 <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group">
                   <td className="p-5">

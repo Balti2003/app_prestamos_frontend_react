@@ -62,8 +62,8 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
       </div>
 
       <div className="bg-fin-charcoal rounded-3xl border border-gray-800 shadow-fin-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-fin-charcoal-light/50 border-b border-gray-800">
                 <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Cliente</th>

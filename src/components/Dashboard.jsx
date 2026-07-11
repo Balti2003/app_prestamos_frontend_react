@@ -78,7 +78,7 @@ const Dashboard = ({ onLogout }) => {
   const { metricas_financieras, estado_cartera, operativo_hoy } = data;
 
   return (
-    <div className="min-h-screen bg-fin-dark-bg text-white font-sans">
+    <div className="min-h-screen w-full bg-[#07080a] text-white overflow-x-hidden flex flex-col">
       <NuevoClienteModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
@@ -97,80 +97,90 @@ const Dashboard = ({ onLogout }) => {
         onRefresh={fetchDashboardData} 
       />
 
-      {/* HEADER */}
-      <header className="p-6 lg:px-10 flex justify-between items-center border-b border-gray-800 bg-fin-charcoal/30 sticky top-0 z-50 backdrop-blur-md">
-        <div className="flex items-center gap-8">
+      {/* HEADER RESPONSIVO */}
+      <header className="p-4 lg:p-6 lg:px-10 flex flex-col lg:flex-row justify-between items-center gap-4 border-b border-gray-800 bg-fin-charcoal/30 sticky top-0 z-50 backdrop-blur-md w-full">
+        
+        {/* SECCIÓN IZQUIERDA: LOGO Y NAVEGACIÓN CENTRAL */}
+        {/* En mobile se pone en columna, en monitores en fila horizontal con sus alineaciones */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-8 w-full lg:w-auto justify-between sm:justify-start">
+            
+            {/* Brand / Logo */}
             <div className="flex flex-col">
                 <Brand 
-                  size="md" // o el tamaño que ya estés usando en el Header
+                  size="md"
                   onClick={() => {
-                    setSelectedClienteId(null); // Reseteamos el expediente abierto
-                    setActiveTab('resumen');    // Forzamos la redirección al Dashboard (Home)
+                    setSelectedClienteId(null);
+                    setActiveTab('resumen');
                   }} 
                 />
                 <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] -mt-4 ml-12 italic"></span>
             </div>
 
-            {/* NAVEGACIÓN DE SECCIONES */}
-            <nav className="hidden lg:flex gap-1 bg-fin-charcoal/50 p-1 rounded-xl border border-gray-800">
-                <button 
-                  onClick={() => setActiveTab('resumen')}
-                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'resumen' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
-                >
-                    RESUMEN
-                </button>
-                <button 
-                  onClick={() => setActiveTab('clientes')}
-                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'clientes' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
-                >
-                    CLIENTES
-                </button>
-                <button 
-                  onClick={() => setActiveTab('movimientos')}
-                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${activeTab === 'movimientos' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
-                >
-                    MOVIMIENTOS
-                </button>
-
+            {/* NAVEGACIÓN DE SECCIONES (Ahora adaptada para mobile) */}
+            {/* w-full en mobile hace que ocupe todo el ancho equilibradamente, sm:w-auto lo re-encuadra en PC */}
+            <nav className="flex gap-1 bg-fin-charcoal/50 p-1 rounded-xl border border-gray-800 w-full sm:w-auto justify-center">
+              <button 
+                onClick={() => { setSelectedClienteId(null); setActiveTab('resumen'); }}
+                className={`flex-1 sm:flex-initial text-center px-3 py-2 rounded-lg text-[11px] sm:text-xs font-black transition-all ${activeTab === 'resumen' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
+              >
+                  RESUMEN
+              </button>
+              <button 
+                onClick={() => { setSelectedClienteId(null); setActiveTab('clientes'); }}
+                className={`flex-1 sm:flex-initial text-center px-3 py-2 rounded-lg text-[11px] sm:text-xs font-black transition-all ${activeTab === 'clientes' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
+              >
+                  CLIENTES
+              </button>
+              <button 
+                onClick={() => { setSelectedClienteId(null); setActiveTab('movimientos'); }}
+                className={`flex-1 sm:flex-initial text-center px-3 py-2 rounded-lg text-[11px] sm:text-xs font-black transition-all ${activeTab === 'movimientos' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
+              >
+                  MOVIMIENTOS
+              </button>
             </nav>
         </div>
 
-        <div className="flex items-center gap-6">
-            <div className="hidden md:flex flex-col items-end">
+        {/* SECCIÓN DERECHA: SESIÓN, LOGOUT Y AVATAR */}
+        {/* w-full en mobile permite alinear los botones a los extremos si la pantalla es muy chica */}
+        <div className="flex items-center justify-between sm:justify-end w-full lg:w-auto gap-4 sm:gap-6 border-t border-gray-800/40 lg:border-t-0 pt-3 lg:pt-0">
+            
+            {/* Indicador de operador (Oculto en celulares chicos para dar aire) */}
+            <div className="hidden sm:flex flex-col items-end">
                 <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Sesión Activa</span>
                 <span className="text-sm font-medium text-white">Hola, Baltasar</span>
             </div>
 
-            <div className="flex gap-2">
-                {/* <button className="bg-fin-charcoal-light p-2.5 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-all hover:border-fin-violet/50 shadow-sm">
-                    <Settings size={18}/>
-                </button> */}
-                <button 
-                    onClick={onLogout}
-                    className="bg-fin-charcoal-light p-2.5 rounded-xl border border-gray-800 text-red-400 hover:bg-red-950/20 hover:border-red-900 transition-all shadow-sm group"
-                    title="Cerrar Sesión"
-                >
-                    <LogOut size={18} className="group-hover:translate-x-0.5 transition-transform"/>
-                </button>
-            </div>
-
-            <div className="relative group">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-fin-violet to-fin-cyan flex items-center justify-center font-black text-white shadow-neon-cyan active:scale-95 transition-transform cursor-pointer">
+            <div className="flex items-center gap-4 ml-auto sm:ml-0">
+                {/* Botón Cerrar Sesión */}
+                <div className="flex gap-2">
                     <button 
-                      onClick={() => {
-                        setSelectedClienteId(null); // Reseteamos por si estaba viendo un expediente de cliente
-                        setActiveTab('mi-perfil');  // Activamos la pantalla del operador
-                      }}
-                      className={`relative w-11 h-11 rounded-xl bg-black border flex items-center justify-center font-bold text-sm text-white transition-all focus:outline-none ${
-                        activeTab === 'mi-perfil' 
-                          ? 'border-fin-violet shadow-neon-violet ring-1 ring-fin-violet' 
-                          : 'border-gray-700 hover:border-gray-500 shadow-lg shadow-cyan-500/5'
-                      }`}
+                        onClick={onLogout}
+                        className="bg-fin-charcoal-light p-2.5 rounded-xl border border-gray-800 text-red-400 hover:bg-red-950/20 hover:border-red-900 transition-all shadow-sm group"
+                        title="Cerrar Sesión"
                     >
-                      BL
+                        <LogOut size={18} className="group-hover:translate-x-0.5 transition-transform"/>
                     </button>
                 </div>
-                <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 border-2 border-fin-dark-bg rounded-full"></div>
+
+                {/* Botón de Perfil BL de la derecha del todo */}
+                <div className="relative group">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-fin-violet to-fin-cyan flex items-center justify-center font-black text-white shadow-neon-cyan active:scale-95 transition-transform cursor-pointer">
+                        <button 
+                          onClick={() => {
+                            setSelectedClienteId(null);
+                            setActiveTab('mi-perfil');
+                          }}
+                          className={`relative w-11 h-11 rounded-xl bg-black border flex items-center justify-center font-bold text-sm text-white transition-all focus:outline-none ${
+                            activeTab === 'mi-perfil' 
+                              ? 'border-fin-violet shadow-neon-violet ring-1 ring-fin-violet' 
+                              : 'border-gray-700 hover:border-gray-500 shadow-lg shadow-cyan-500/5'
+                          }`}
+                        >
+                          BL
+                        </button>
+                    </div>
+                    <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 border-2 border-fin-dark-bg rounded-full"></div>
+                </div>
             </div>
         </div>
       </header>
