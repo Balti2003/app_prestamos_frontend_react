@@ -67,36 +67,36 @@ const HistorialMovimientos = () => {
   if (loading) return <div className="p-10 text-center text-fin-cyan animate-pulse font-black uppercase italic">Sincronizando caja...</div>;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 w-full">
       
       {/* Header y Filtros */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 w-full">
         <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">
           Movimientos de <span className="text-fin-cyan">Caja</span>
         </h2>
         
-        <div className="flex flex-wrap items-center gap-3 bg-fin-charcoal p-2 rounded-2xl border border-gray-800">
+        <div className="flex flex-wrap items-center gap-3 bg-fin-charcoal p-2 rounded-2xl border border-gray-800 w-full lg:w-auto">
           <div className="flex items-center gap-2 px-3">
             <Filter size={14} className="text-gray-500" />
             <span className="text-[10px] font-black text-gray-500 uppercase">Filtros:</span>
           </div>
           <input 
             type="date" 
-            className="bg-fin-dark-bg border border-gray-700 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-fin-cyan"
+            className="bg-fin-dark-bg border border-gray-700 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-fin-cyan flex-1 sm:flex-none"
             value={fechaDesde}
             onChange={(e) => setFechaDesde(e.target.value)}
           />
           <span className="text-gray-600 text-xs">al</span>
           <input 
             type="date" 
-            className="bg-fin-dark-bg border border-gray-700 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-fin-cyan"
+            className="bg-fin-dark-bg border border-gray-700 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-fin-cyan flex-1 sm:flex-none"
             value={fechaHasta}
             onChange={(e) => setFechaHasta(e.target.value)}
           />
           {(fechaDesde || fechaHasta) && (
             <button 
               onClick={() => { setFechaDesde(''); setFechaHasta(''); }}
-              className="text-[10px] font-black text-fin-violet px-3 hover:underline"
+              className="text-[10px] font-black text-fin-violet px-3 hover:underline ml-auto sm:ml-0"
             >
               LIMPIAR
             </button>
@@ -104,35 +104,39 @@ const HistorialMovimientos = () => {
         </div>
       </div>
 
-      {/* Tabla */}
+      {/* Tarjeta de la Tabla */}
       <div className="bg-fin-charcoal rounded-3xl border border-gray-800 overflow-hidden w-full">
-        <div className="w-full overflow-x-auto">          
-          <table className="text-left border-collapse min-w-[850px] lg:w-full">
+        
+        <div className="w-full overflow-x-auto block">      
+          
+          <table className="text-left border-collapse min-w-[850px] lg:w-full table-fixed lg:table-auto">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-900/30 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                {/* Le damos un ancho base a la columna del detalle para que el texto no se amontone hacia abajo */}
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest min-w-[150px]">Fecha y Hora</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest min-w-[320px]">Detalle de Operación</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Tipo</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Monto</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Recibo</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[160px] min-w-[160px]">Fecha y Hora</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[340px] min-w-[340px]">Detalle de Operación</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[120px] min-w-[120px]">Tipo</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right w-[130px] min-w-[130px]">Monto</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[100px] min-w-[100px]">Recibo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60 text-sm text-gray-200">
               {filteredMovimientos.length > 0 ? filteredMovimientos.map((m) => (
                 <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group">
-                  <td className="p-5">
+                  
+                  <td className="p-5 whitespace-nowrap">
                     <div className="flex items-center gap-2 text-gray-400">
                       <Calendar size={14} className="text-gray-600" />
                       <span className="text-xs font-medium">{m.fecha_formateada}</span>
                     </div>
                   </td>
-                  <td className="p-5">
+                  
+                  <td className="p-5 whitespace-normal">
                     <p className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors uppercase tracking-tight">
                       {m.concepto}
                     </p>
                   </td>
-                  <td className="p-5 text-center">
+                  
+                  <td className="p-5 text-center whitespace-nowrap">
                     <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
                       m.tipo === 'ingreso' 
                         ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
@@ -142,13 +146,14 @@ const HistorialMovimientos = () => {
                       {m.tipo}
                     </span>
                   </td>
-                  <td className="p-5 text-right font-mono font-black">
+                  
+                  <td className="p-5 text-right font-mono font-black whitespace-nowrap">
                     <span className={m.tipo === 'ingreso' ? 'text-green-400' : 'text-red-400'}>
                       {m.tipo === 'ingreso' ? '+' : '-'} ${parseFloat(m.monto).toLocaleString()}
                     </span>
                   </td>
-                  <td className="p-5 text-center">
-                    {/* Solo mostramos el botón si es un ingreso (cobro) y tenemos el cuota_id */}
+                  
+                  <td className="p-5 text-center whitespace-nowrap">
                     {m.tipo === 'ingreso' && m.cuota_id ? (
                       <button 
                         onClick={() => handleDescargarRecibo(m.cuota_id)}

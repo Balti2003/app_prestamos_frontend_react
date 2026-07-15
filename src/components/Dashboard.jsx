@@ -75,6 +75,41 @@ const Dashboard = ({ onLogout }) => {
     setIsPagoModalOpen(true);
   };
 
+  const descargarReciboSeguro = async (cuotaId) => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      
+      const response = await fetch(`http://localhost:8000/api/cuotas/${cuotaId}/generar_recibo/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('No se pudo descargar el comprobante');
+      }
+
+      // Convertimos la respuesta a un archivo binario (Blob)
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Creamos un link invisible temporal para disparar la descarga
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `comprobante_cuota_${cuotaId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpieza
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error descargando recibo:", error);
+      alert("Error al descargar el comprobante. Verifique su sesión.");
+    }
+  };
+
   const { metricas_financieras, estado_cartera, operativo_hoy } = data;
 
   return (
@@ -101,7 +136,6 @@ const Dashboard = ({ onLogout }) => {
       <header className="p-4 lg:p-6 lg:px-10 flex flex-col lg:flex-row justify-between items-center gap-4 border-b border-gray-800 bg-fin-charcoal/30 sticky top-0 z-50 backdrop-blur-md w-full">
         
         {/* SECCIÓN IZQUIERDA: LOGO Y NAVEGACIÓN CENTRAL */}
-        {/* En mobile se pone en columna, en monitores en fila horizontal con sus alineaciones */}
         <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-8 w-full lg:w-auto justify-between sm:justify-start">
             
             {/* Brand / Logo */}
@@ -116,8 +150,7 @@ const Dashboard = ({ onLogout }) => {
                 <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] -mt-4 ml-12 italic"></span>
             </div>
 
-            {/* NAVEGACIÓN DE SECCIONES (Ahora adaptada para mobile) */}
-            {/* w-full en mobile hace que ocupe todo el ancho equilibradamente, sm:w-auto lo re-encuadra en PC */}
+            {/* NAVEGACIÓN DE SECCIONES */}
             <nav className="flex gap-1 bg-fin-charcoal/50 p-1 rounded-xl border border-gray-800 w-full sm:w-auto justify-center">
               <button 
                 onClick={() => { setSelectedClienteId(null); setActiveTab('resumen'); }}
@@ -141,10 +174,8 @@ const Dashboard = ({ onLogout }) => {
         </div>
 
         {/* SECCIÓN DERECHA: SESIÓN, LOGOUT Y AVATAR */}
-        {/* w-full en mobile permite alinear los botones a los extremos si la pantalla es muy chica */}
         <div className="flex items-center justify-between sm:justify-end w-full lg:w-auto gap-4 sm:gap-6 border-t border-gray-800/40 lg:border-t-0 pt-3 lg:pt-0">
             
-            {/* Indicador de operador (Oculto en celulares chicos para dar aire) */}
             <div className="hidden sm:flex flex-col items-end">
                 <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Sesión Activa</span>
                 <span className="text-sm font-medium text-white">Hola, Baltasar</span>
@@ -185,8 +216,8 @@ const Dashboard = ({ onLogout }) => {
         </div>
       </header>
 
-      {/* CONTENIDO PRINCIPAL CON RENDERIZADO CONDICIONAL TRIPLE */}
-      <main className="p-6 lg:p-10 max-w-[1600px] mx-auto">
+      {/* CONTENIDO PRINCIPAL CON RENDERIZADO CONDICIONAL TRIPLE (OPTIMIZADO RESPONSIVE) */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:p-6 overflow-hidden flex flex-col">
         
         {activeTab === 'resumen' && (
           <>
@@ -311,25 +342,25 @@ const Dashboard = ({ onLogout }) => {
 
         {activeTab === 'clientes' && (
           selectedClienteId ? (
-            /* Capa 1: Si hay un cliente seleccionado, se despliega su Perfil Avanzado */
             <DetalleClientePerfil 
               clienteId={selectedClienteId} 
-              onVolver={() => setSelectedClienteId(null)} // Al volver, limpia el ID y regresa a la lista
-              onDescargarRecibo={(cuotaId) => {
-                window.open(`http://localhost:8000/api/cuotas/${cuotaId}/generar_recibo/`, '_blank');
-              }}
+              onVolver={() => setSelectedClienteId(null)} 
+              onDescargarRecibo={descargarReciboSeguro}
             />
           ) : (
-            /* Capa 2: Si no hay ID, se muestra la lista general de siempre */
-            <ListaClientes 
-              onOpenPayment={abrirModalPagoConCliente} 
-              onVerPerfil={(id) => setSelectedClienteId(id)} // <-- Le pasamos este disparador a la lista
-            />
+            <div className="w-full overflow-hidden">
+              <ListaClientes 
+                onOpenPayment={abrirModalPagoConCliente} 
+                onVerPerfil={(id) => setSelectedClienteId(id)} //
+              />
+            </div>
           )
         )}
 
         {activeTab === 'movimientos' && (
-          <HistorialMovimientos />
+          <div className="w-full overflow-hidden">
+            <HistorialMovimientos />
+          </div>
         )}
 
         {activeTab === 'mi-perfil' && (
@@ -337,7 +368,6 @@ const Dashboard = ({ onLogout }) => {
             onVolverALaHome={() => setActiveTab('resumen')} 
           />
         )}
-
       </main>
     </div>
   );

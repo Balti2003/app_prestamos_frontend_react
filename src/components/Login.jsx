@@ -24,21 +24,34 @@ const Login = ({ onLogin }) => {
     }
   };
 
+  const bgImageUrl = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop";
+
   return (
-    <div className="flex min-h-screen bg-fin-dark-bg text-white w-full">
-      {/* Columna Izquierda: Imagen y Bienvenida */}
+    // 1. EL CONTENEDOR GLOBAL: Vuelve a tener su color sólido de siempre (bg-fin-dark-bg)
+    <div className="flex min-h-screen bg-fin-dark-bg text-white w-full relative overflow-hidden">
+      
+      {/* 2. FONDO EXCLUSIVO PARA MOBILE: Solo se renderiza en celulares y tablets (lg:hidden) */}
       <div 
-        className="hidden lg:flex lg:w-1/2 p-16 flex-col justify-between relative bg-cover bg-center"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop')" }}
+        className="absolute inset-0 bg-cover bg-center lg:hidden z-0"
+        style={{ backgroundImage: `url('${bgImageUrl}')` }}
+      />
+      
+      {/* OVERLAY OSCURO MÓVIL: Apaga el fondo de celular un 85% para legibilidad */}
+      <div className="absolute inset-0 bg-fin-dark-bg/85 z-0 lg:hidden pointer-events-none"></div>
+
+
+      {/* ================= COLUMNA IZQUIERDA: BIENVENIDA (SÓLO PC - INTACTA) ================= */}
+      <div 
+        className="hidden lg:flex lg:w-1/2 p-16 flex-col justify-between relative bg-cover bg-center z-10 border-r border-gray-800/40"
+        style={{ backgroundImage: `url('${bgImageUrl}')` }}
       >
-        {/* Overlay oscuro para legibilidad del texto */}
+        {/* Overlay oscuro para legibilidad del texto en PC */}
         <div className="absolute inset-0 bg-fin-dark-bg/80 backdrop-blur-sm"></div>
 
         <div className="relative z-10">
           <Brand size="lg" />
           
           <div className="mt-12">
-            {/* Un pequeño detalle indicador arriba del título */}
             <div className="flex items-center gap-2 mb-4">
               <span className="h-[1px] w-8 bg-fin-cyan"></span>
               <p className="text-xs font-bold tracking-[0.3em] text-fin-cyan uppercase opacity-80">
@@ -66,20 +79,24 @@ const Login = ({ onLogin }) => {
         </div>
       </div>
 
-      {/* Columna Derecha: Formulario */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-fin-charcoal">
-        <div className="w-full max-w-md bg-fin-charcoal-light p-10 rounded-3xl shadow-fin-card border border-gray-800">
-          <div className="mb-10 text-center flex flex-col items-center">
+
+      {/* ================= COLUMNA DERECHA: FORMULARIO (PC & MOBILE) ================= */}
+      {/* bg-transparent en mobile para dejar ver la Tierra, lg:bg-fin-charcoal sólido en PC */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 bg-transparent lg:bg-fin-charcoal z-10">
+        
+        {/* TARJETA DE LOGIN: Agregamos blur solo en mobile */}
+        <div className="w-full max-w-md bg-fin-charcoal-light/95 lg:bg-fin-charcoal-light p-8 sm:p-10 rounded-3xl shadow-fin-card border border-gray-800 backdrop-blur-md lg:backdrop-blur-none">
+          <div className="mb-8 text-center flex flex-col items-center">
             {/* Logo secundario para móvil */}
             <div className="lg:hidden mb-6"><Brand /></div>
             
             <h3 className="text-3xl font-extrabold tracking-tight text-white mb-2">LOGIN</h3>
-            <p className="text-fin-gray-text">Ingresa tus credenciales para acceder al sistema</p>
+            <p className="text-sm text-fin-gray-text">Ingresa tus credenciales para acceder al sistema</p>
           </div>
 
           {error && (
             <div className="flex items-center gap-3 p-4 mb-6 bg-red-950/40 rounded-xl border border-red-800 text-red-300 text-sm">
-                <AlertCircle className="h-5 w-5 text-red-500" />
+                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
                 <p>{error}</p>
             </div>
           )}
@@ -118,11 +135,11 @@ const Login = ({ onLogin }) => {
           </form>
         </div>
       </div>
+
     </div>
   );
 };
 
-// Componente pequeño para los inputs para no repetir código
 const InputField = ({ icon, type, placeholder, value, onChange }) => (
     <div className="relative">
       <div className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500">{icon}</div>

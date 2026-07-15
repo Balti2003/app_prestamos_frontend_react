@@ -33,7 +33,7 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
   );
   
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
       
       {/* Panel Lateral de Detalle */}
       <ClienteDetallePanel 
@@ -42,7 +42,7 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
         onOpenPayment={onOpenPayment}
       />
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 w-full">
         <div>
           <h2 className="text-3xl font-black tracking-tighter italic text-white">CARTERA DE CLIENTES</h2>
           <p className="text-fin-gray-text text-sm">Gestiona y visualiza el estado de tus prestatarios.</p>
@@ -61,35 +61,37 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
         </div>
       </div>
 
-      <div className="bg-fin-charcoal rounded-3xl border border-gray-800 shadow-fin-card overflow-hidden">
-        <div className="w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+      {/* Tarjeta de la Tabla */}
+      <div className="bg-fin-charcoal rounded-3xl border border-gray-800 shadow-fin-card overflow-hidden w-full">
+        
+        <div className="w-full overflow-x-auto block">
+          
+          <table className="text-left border-collapse min-w-[780px] lg:w-full table-fixed lg:table-auto">
             <thead>
-              <tr className="bg-fin-charcoal-light/50 border-b border-gray-800">
-                <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Cliente</th>
-                <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Dni</th>
-                <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500">Contacto</th>
-                <th className="p-5 text-xs font-black uppercase tracking-widest text-gray-500 text-center">Acciones</th>
+              <tr className="bg-fin-charcoal-light/50 border-b border-gray-800 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[260px] min-w-[260px]">Cliente</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[140px] min-w-[140px]">Dni</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[180px] min-w-[180px]">Contacto</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[200px] min-w-[200px]">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
               {clientesFiltrados.map((cliente) => (
                 <tr key={cliente.id} className="hover:bg-fin-violet/5 transition-colors group">
-                  <td className="p-5">
+                  
+                  <td className="p-5 whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-fin-charcoal-light flex items-center justify-center border border-gray-700 text-fin-cyan font-bold group-hover:border-fin-cyan/50 transition-colors">
+                      <div className="w-10 h-10 rounded-full bg-fin-charcoal-light flex items-center justify-center border border-gray-700 text-fin-cyan font-bold group-hover:border-fin-cyan/50 transition-colors flex-shrink-0">
                         {cliente.nombre[0]}{cliente.apellido[0]}
                       </div>
-                      <div>
-                        {/* Hacemos que el nombre también sea un enlace directo al Perfil Detallado */}
+                      <div className="truncate">
                         <button
                           onClick={() => onVerPerfil(cliente.id)}
-                          className="font-bold text-white capitalize hover:text-fin-violet transition-colors text-left focus:outline-none"
+                          className="font-bold text-white capitalize hover:text-fin-violet transition-colors text-left focus:outline-none block"
                         >
                           {cliente.nombre} {cliente.apellido}
                         </button>
                         
-                        {/* --- SINCRONIZACIÓN DE MORA (PUNTO 3) --- */}
                         {cliente.tiene_mora ? (
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="relative flex h-2 w-2">
@@ -109,41 +111,42 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                     </div>
                   </td>
 
-                  <td className="p-5 text-sm text-gray-300 font-mono italic">
+                  {/* Columna DNI */}
+                  <td className="p-5 text-sm text-gray-300 font-mono italic whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <IdCard size={14} className="text-gray-600" />
+                      <IdCard size={14} className="text-gray-600 flex-shrink-0" />
                       {cliente.dni}
                     </div>
                   </td>
 
-                  <td className="p-5 text-sm text-gray-300">
+                  {/* Columna Teléfono */}
+                  <td className="p-5 text-sm text-gray-300 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <Phone size={14} className="text-gray-600" />
+                      <Phone size={14} className="text-gray-600 flex-shrink-0" />
                       {cliente.telefono || 'Sin teléfono'}
                     </div>
                   </td>
 
-                  <td className="p-5 text-center">
+                  {/* Columna Acciones */}
+                  <td className="p-5 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-2">
                       {cliente.tiene_mora && (
-                        <div className="bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-red-500 text-[9px] font-bold mr-1">
+                        <div className="bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-red-500 text-[9px] font-bold flex-shrink-0">
                           MOROSO
                         </div>
                       )}
                       
-                      {/* ACCIÓN NUEVA: Botón para saltar al Expediente Completo */}
                       <button 
                         onClick={() => onVerPerfil(cliente.id)}
-                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-cyan hover:text-white transition-all"
+                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-cyan hover:text-white transition-all flex-shrink-0"
                         title="Ver Expediente y Comportamiento Histórico"
                       >
                         <Eye size={18} />
                       </button>
 
-                      {/* Tu botón original de Panel Lateral */}
                       <button 
                         onClick={() => setSelectedCliente(cliente.id)}
-                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all"
+                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all flex-shrink-0"
                         title="Ver Detalle Rápido"
                       >
                         <ExternalLink size={18} />
