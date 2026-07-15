@@ -8,9 +8,11 @@ import RegistrarPagoModal from './RegistrarPagoModal';
 import HistorialMovimientos from './HistorialMovimientos';
 import DetalleClientePerfil from './DetalleClientePerfil';
 import MiPerfilUsuario from './MiPerfilUsuario';
+import { AperturaCajaModal, ArqueoCierreModal } from './CajaModales';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
-  CalendarDays, LogOut, UserPlus, FilePlus, ReceiptText 
+  CalendarDays, LogOut, UserPlus, FilePlus, ReceiptText, Play, 
+  CheckCircle2, FolderLock 
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -23,6 +25,9 @@ const Dashboard = ({ onLogout }) => {
   const [isPrestamoModalOpen, setIsPrestamoModalOpen] = useState(false);
   const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
   const [selectedClienteId, setSelectedClienteId] = useState(null);
+  const [cajaInfo, setCajaInfo] = useState({ cargando: true, abierta: false, datos: null });
+  const [isAperturaModalOpen, setIsAperturaModalOpen] = useState(false);
+  const [isCierreModalOpen, setIsCierreModalOpen] = useState(false);
 
   // Datos para el gráfico (puedes reemplazarlos luego con datos del backend)
   const chartData = [
@@ -50,11 +55,37 @@ const Dashboard = ({ onLogout }) => {
     }
   };
 
+  // Función para consultar el estado de la caja de hoy en el backend
+  const chequearEstadoCaja = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:8000/api/caja-diaria/estado_actual/', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.caja_abierta) {
+          setCajaInfo({ cargando: false, abierta: true, datos: data });
+        } else {
+          setCajaInfo({ cargando: false, abierta: false, datos: data }); // Trae el saldo sugerido
+        }
+      }
+    } catch (error) {
+      console.error("Error al chequear el estado de la caja:", error);
+      setCajaInfo({ cargando: false, abierta: false, datos: null });
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDashboardData();
+    chequearEstadoCaja();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeTab]);
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-fin-dark-bg text-white">
@@ -71,6 +102,10 @@ const Dashboard = ({ onLogout }) => {
 
   // eslint-disable-next-line no-unused-vars
   const abrirModalPagoConCliente = (cliente) => {
+    if (!cajaInfo.abierta) {
+    alert("No puedes registrar pagos. Debes abrir la caja del día primero.");
+    return;
+  }
     setActiveTab('resumen');
     setIsPagoModalOpen(true);
   };
@@ -216,34 +251,84 @@ const Dashboard = ({ onLogout }) => {
         </div>
       </header>
 
-      {/* CONTENIDO PRINCIPAL CON RENDERIZADO CONDICIONAL TRIPLE (OPTIMIZADO RESPONSIVE) */}
+      {/* CONTENIDO PRINCIPAL CON RENDERIZADO CONDICIONAL TRIPLE */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:p-6 overflow-hidden flex flex-col">
         
         {activeTab === 'resumen' && (
           <>
+            {/* --- ALERTA Y CONTROL DE CAJA DIARIA */}
+            {cajaInfo.cargando ? (
+              <div className="mb-6 p-4 bg-fin-charcoal/40 border border-gray-800 rounded-2xl animate-pulse flex h-16 w-full" />
+            ) : !cajaInfo.abierta ? (
+              /* CAJA CERRADA: Advertencia de bloqueo */
+              <div className="mb-6 p-4 sm:p-5 bg-red-950/20 border border-red-900/40 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-red-500/10 rounded-xl text-red-500 border border-red-500/20">
+                    <AlertCircle size={20} className="animate-bounce" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight">La Caja del Día está Cerrada</h4>
+                    <p className="text-xs text-gray-400 mt-0.5">Debes abrir la caja diaria con un saldo base para poder registrar cobros o préstamos.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsAperturaModalOpen(true)}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-red-500/10 uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  <Play size={14} /> Abrir Caja de Hoy
+                </button>
+              </div>
+            ) : (
+              /* CAJA ABIERTA: Todo en Orden */
+              <div className="mb-6 p-4 sm:p-5 bg-green-950/10 border border-green-900/20 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-green-500/10 rounded-xl text-green-400 border border-green-500/10">
+                    <CheckCircle2 size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2">
+                      Caja Diaria Activa <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                    </h4>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Abierta por <span className="text-green-400 font-semibold">{cajaInfo.datos?.operador_apertura}</span> con un saldo inicial de <span className="font-semibold text-white">${cajaInfo.datos?.saldo_apertura.toLocaleString()}</span>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsCierreModalOpen(true)}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white font-black text-xs rounded-xl border border-gray-700 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  <FolderLock size={14} /> Realizar Arqueo y Cerrar
+                </button>
+              </div>
+            )}
+
             <div className="mb-10">
                 <h2 className="text-4xl font-black tracking-tighter text-white italic">Panel General</h2>
                 <p className="text-fin-gray-text text-sm mt-1">Estado de la cartera de préstamos al {new Date().toLocaleDateString()}.</p>
             </div>
 
-            {/* --- ACCIONES RÁPIDAS --- */}
+            {/* --- ACCIONES RÁPIDAS (DESHABILITADAS SI LA CAJA ESTÁ CERRADA) --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
               <QuickActionBtn 
                 icon={<UserPlus />} 
                 title="Nuevo Cliente" 
                 color="cyan" 
+                disabled={!cajaInfo.abierta}
                 onClick={() => setIsModalOpen(true)} 
               />
               <QuickActionBtn 
                 icon={<FilePlus />} 
                 title="Crear Préstamo" 
                 color="violet" 
+                disabled={!cajaInfo.abierta}
                 onClick={() => setIsPrestamoModalOpen(true)} 
               />
               <QuickActionBtn 
                 icon={<ReceiptText />} 
                 title="Registrar Pago" 
                 color="gray" 
+                disabled={!cajaInfo.abierta}
                 onClick={() => setIsPagoModalOpen(true)} 
               />
             </div>
@@ -349,10 +434,12 @@ const Dashboard = ({ onLogout }) => {
             />
           ) : (
             <div className="w-full overflow-hidden">
-              <ListaClientes 
-                onOpenPayment={abrirModalPagoConCliente} 
-                onVerPerfil={(id) => setSelectedClienteId(id)} //
-              />
+              <React.Suspense fallback={<div className="h-10 w-full animate-pulse bg-fin-charcoal" />}>
+                <ListaClientes 
+                  onOpenPayment={abrirModalPagoConCliente} 
+                  onVerPerfil={(id) => setSelectedClienteId(id)}
+                />
+              </React.Suspense>
             </div>
           )
         )}
@@ -369,24 +456,51 @@ const Dashboard = ({ onLogout }) => {
           />
         )}
       </main>
+
+      {/* --- INTEGRACIÓN DE MODALES DE CAJA DIARIA */}
+      <AperturaCajaModal 
+        isOpen={isAperturaModalOpen}
+        onClose={() => setIsAperturaModalOpen(false)}
+        saldoSugerido={cajaInfo.datos?.saldo_sugerido}
+        onAperturaExitosa={() => {
+          setIsAperturaModalOpen(false);
+          chequearEstadoCaja(); // Refresca el banner principal
+        }}
+      />
+
+      <ArqueoCierreModal 
+        isOpen={isCierreModalOpen}
+        datosCaja={cajaInfo.datos}
+        onClose={() => setIsCierreModalOpen(false)}
+        onCierreExitoso={() => {
+          setIsCierreModalOpen(false);
+          chequearEstadoCaja(); // Vuelve a consultar el estado y actualiza a modo cerrado
+        }}
+      />
     </div>
   );
 };
 
 // --- COMPONENTES AUXILIARES ---
 
-const QuickActionBtn = ({ icon, title, color, onClick }) => {
+const QuickActionBtn = ({ icon, title, color, onClick, disabled }) => {
   const colors = {
     cyan: "hover:border-fin-cyan text-fin-cyan shadow-fin-cyan/5",
     violet: "hover:border-fin-violet text-fin-violet shadow-fin-violet/5",
     gray: "hover:border-white text-white shadow-white/5"
   };
+
   return (
     <button 
       onClick={onClick}
-      className={`flex items-center justify-center gap-3 p-5 bg-fin-charcoal border border-gray-800 rounded-2xl transition-all hover:scale-[1.02] hover:shadow-xl group ${colors[color]}`}
+      disabled={disabled}
+      className={`flex items-center justify-center gap-3 p-5 bg-fin-charcoal border border-gray-800 rounded-2xl transition-all group ${
+        disabled 
+          ? "opacity-35 cursor-not-allowed hover:scale-100 text-gray-600" 
+          : `hover:scale-[1.02] hover:shadow-xl ${colors[color]}`
+      }`}
     >
-      <div className="transition-transform group-hover:scale-110">
+      <div className={`transition-transform ${!disabled && 'group-hover:scale-110'}`}>
         {React.cloneElement(icon, { size: 24 })}
       </div>
       <span className="font-bold text-lg">{title}</span>
