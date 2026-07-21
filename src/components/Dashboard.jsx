@@ -145,6 +145,38 @@ const Dashboard = ({ onLogout }) => {
     }
   };
 
+  const descargarComprobanteDesembolsoSeguro = async (prestamoId) => {
+    try { 
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      
+      const response = await fetch(`http://localhost:8000/api/prestamos/${prestamoId}/comprobante-desembolso/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al generar el comprobante de desembolso.');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Comprobante_Desembolso_Prestamo_${prestamoId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error al descargar el PDF:", error);
+      alert("Ocurrió un error al intentar descargar el comprobante del préstamo.");
+    }
+  };
+
   const { metricas_financieras, estado_cartera, operativo_hoy } = data;
 
   return (
@@ -165,6 +197,13 @@ const Dashboard = ({ onLogout }) => {
         isOpen={isPagoModalOpen} 
         onClose={() => setIsPagoModalOpen(false)} 
         onRefresh={fetchDashboardData} 
+      />
+
+      <NuevoPrestamoModal 
+        isOpen={isPrestamoModalOpen} 
+        onClose={() => setIsPrestamoModalOpen(false)} 
+        onRefresh={fetchDashboardData} 
+        onDescargarComprobante={descargarComprobanteDesembolsoSeguro}
       />
 
       {/* HEADER RESPONSIVO */}

@@ -6,6 +6,7 @@ import {
   CheckCircle, 
   Clock, 
   ReceiptText,
+  FileText,
   ArrowLeft
 } from 'lucide-react';
     
@@ -13,6 +14,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('activos'); // Control de pestañas
+  const [descargandoDesembolsoId, setDescargandoDesembolsoId] = useState(null);
 
   // Buscamos los datos dinámicamente al montar el componente
   useEffect(() => {
@@ -48,6 +50,40 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         setLoading(false);
       });
   }, [clienteId]);
+
+  // Función local para descargar el Comprobante de Desembolso del Préstamo
+  const handleDescargarDesembolso = async (prestamoId) => {
+    if (!prestamoId) return;
+    setDescargandoDesembolsoId(prestamoId);
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/api/prestamos/${prestamoId}/comprobante-desembolso/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo generar el comprobante de desembolso.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Comprobante_Desembolso_Prestamo_${prestamoId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al descargar comprobante de desembolso:", err);
+      alert("Error al intentar descargar el comprobante de desembolso.");
+    } finally {
+      setDescargandoDesembolsoId(null);
+    }
+  };
 
   // Función auxiliar para elegir el color del scoring de puntualidad
   const getPuntualidadColor = (porcentaje) => {
@@ -234,6 +270,8 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                     ? `$${montoCuotaNumeric.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
                     : '—';
 
+                  const isDescargando = descargandoDesembolsoId === prestamo.id;
+
                   return (
                     <div key={prestamo.id} className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 space-y-4">
                       
@@ -247,13 +285,31 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                             Préstamo Activo
                           </h4>
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                          prestamo.estado === 'mora' 
-                            ? 'bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse' 
-                            : 'bg-fin-cyan/10 text-fin-cyan border border-fin-cyan/20'
-                        }`}>
-                          {prestamo.estado === 'mora' ? 'En Mora' : 'Al día'}
-                        </span>
+
+                        <div className="flex items-center gap-3">
+                          {/* BOTÓN DESEMBOLSO DE PRÉSTAMO (PUNTO C) */}
+                          <button
+                            onClick={() => handleDescargarDesembolso(prestamo.id)}
+                            disabled={isDescargando}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                              isDescargando 
+                                ? 'bg-gray-800 text-gray-600 animate-pulse border border-gray-700' 
+                                : 'bg-fin-violet/10 text-fin-violet hover:bg-fin-violet hover:text-white border border-fin-violet/30'
+                            }`}
+                            title="Descargar Comprobante de Desembolso para Firma"
+                          >
+                            <FileText size={14} />
+                            <span className="hidden sm:inline">Comprobante Prestamo</span>
+                          </button>
+
+                          <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                            prestamo.estado === 'mora' 
+                              ? 'bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse' 
+                              : 'bg-fin-cyan/10 text-fin-cyan border border-fin-cyan/20'
+                          }`}>
+                            {prestamo.estado === 'mora' ? 'En Mora' : 'Al día'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Fila de Métricas Reales del Préstamo */}
@@ -297,7 +353,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </div>
         )}
 
-        {/* PESTAÑA NUEVA: HISTORIAL CRONOLÓGICO DE PAGOS */}
+        {/* PESTAÑA: HISTORIAL CRONOLÓGICO DE PAGOS */}
         {activeTab === 'historial' && (
           <div className="overflow-x-auto">
             {historial_pagos?.length === 0 ? (

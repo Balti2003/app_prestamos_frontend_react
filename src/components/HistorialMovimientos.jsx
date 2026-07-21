@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpCircle, ArrowDownCircle, Calendar, Filter, ReceiptText, Download } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Calendar, Filter, ReceiptText, Download, FileText } from 'lucide-react';
 import api from '../api';
 
 const HistorialMovimientos = () => {
@@ -42,9 +42,10 @@ const HistorialMovimientos = () => {
     }
   };
 
+  // 1. Descarga de Recibo de Pago (Ingreso)
   const handleDescargarRecibo = async (cuotaId) => {
     if (!cuotaId) return;
-    setDescargando(cuotaId);
+    setDescargando(`cuota_${cuotaId}`);
     try {
       const response = await api.get(`/cuotas/${cuotaId}/generar_recibo/`, {
         responseType: 'blob',
@@ -52,13 +53,36 @@ const HistorialMovimientos = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Recibo_Reimpreso_${cuotaId}.pdf`);
+      link.setAttribute('download', `Recibo_Cobro_${cuotaId}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch {
       alert("No se pudo regenerar el recibo. Verifique que la cuota exista.");
+    } finally {
+      setDescargando(null);
+    }
+  };
+
+  // 2. Descarga de Comprobante de Desembolso (Egreso de Préstamo)
+  const handleDescargarDesembolso = async (prestamoId) => {
+    if (!prestamoId) return;
+    setDescargando(`prestamo_${prestamoId}`);
+    try {
+      const response = await api.get(`/prestamos/${prestamoId}/comprobante-desembolso/`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Comprobante_Desembolso_${prestamoId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert("No se pudo generar el comprobante de desembolso.");
     } finally {
       setDescargando(null);
     }
@@ -120,59 +144,91 @@ const HistorialMovimientos = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60 text-sm text-gray-200">
-              {filteredMovimientos.length > 0 ? filteredMovimientos.map((m) => (
-                <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group">
-                  
-                  <td className="p-5 whitespace-nowrap">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Calendar size={14} className="text-gray-600" />
-                      <span className="text-xs font-medium">{m.fecha_formateada}</span>
-                    </div>
-                  </td>
-                  
-                  <td className="p-5 whitespace-normal">
-                    <p className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors uppercase tracking-tight">
-                      {m.concepto}
-                    </p>
-                  </td>
-                  
-                  <td className="p-5 text-center whitespace-nowrap">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                      m.tipo === 'ingreso' 
-                        ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
-                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                    }`}>
-                      {m.tipo === 'ingreso' ? <ArrowUpCircle size={12} /> : <ArrowDownCircle size={12} />}
-                      {m.tipo}
-                    </span>
-                  </td>
-                  
-                  <td className="p-5 text-right font-mono font-black whitespace-nowrap">
-                    <span className={m.tipo === 'ingreso' ? 'text-green-400' : 'text-red-400'}>
-                      {m.tipo === 'ingreso' ? '+' : '-'} ${parseFloat(m.monto).toLocaleString()}
-                    </span>
-                  </td>
-                  
-                  <td className="p-5 text-center whitespace-nowrap">
-                    {m.tipo === 'ingreso' && m.cuota_id ? (
-                      <button 
-                        onClick={() => handleDescargarRecibo(m.cuota_id)}
-                        disabled={descargando === m.cuota_id}
-                        className={`p-2 rounded-xl transition-all ${
-                          descargando === m.cuota_id 
-                          ? 'bg-gray-800 text-gray-600 animate-pulse' 
-                          : 'bg-fin-cyan/10 text-fin-cyan hover:bg-fin-cyan hover:text-white border border-fin-cyan/20'
-                        }`}
-                        title="Reimprimir Comprobante"
-                      >
-                        {descargando === m.cuota_id ? <Download size={16} /> : <ReceiptText size={16} />}
-                      </button>
-                    ) : (
-                      <span className="text-gray-700">-</span>
-                    )}
-                  </td>
-                </tr>
-              )) : (
+              {filteredMovimientos.length > 0 ? filteredMovimientos.map((m) => {
+                
+                // Normalización de tipo para comparación segura (evita fallos por mayúsculas 'EGRESO')
+                const tipoLower = (m.tipo || '').toLowerCase();
+
+                // Extracción segura de prestamo_id (campo directo o fallback desde el concepto)
+                let prestamoIdExtraido = m.prestamo_id || m.prestamo;
+                if (!prestamoIdExtraido && m.concepto) {
+                  const match = m.concepto.match(/(?:#|PRÉSTAMO\s*#?|PRESTAMO\s*#?)\s*(\d+)/i);
+                  if (match) prestamoIdExtraido = match[1];
+                }
+
+                const isDescargandoCuota = descargando === `cuota_${m.cuota_id}`;
+                const isDescargandoPrestamo = descargando === `prestamo_${prestamoIdExtraido}`;
+
+                return (
+                  <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group">
+                    
+                    <td className="p-5 whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <Calendar size={14} className="text-gray-600" />
+                        <span className="text-xs font-medium">{m.fecha_formateada}</span>
+                      </div>
+                    </td>
+                    
+                    <td className="p-5 whitespace-normal">
+                      <p className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors uppercase tracking-tight">
+                        {m.concepto}
+                      </p>
+                    </td>
+                    
+                    <td className="p-5 text-center whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                        tipoLower === 'ingreso' 
+                          ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
+                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                      }`}>
+                        {tipoLower === 'ingreso' ? <ArrowUpCircle size={12} /> : <ArrowDownCircle size={12} />}
+                        {m.tipo}
+                      </span>
+                    </td>
+                    
+                    <td className="p-5 text-right font-mono font-black whitespace-nowrap">
+                      <span className={tipoLower === 'ingreso' ? 'text-green-400' : 'text-red-400'}>
+                        {tipoLower === 'ingreso' ? '+' : '-'} ${parseFloat(m.monto).toLocaleString()}
+                      </span>
+                    </td>
+                    
+                    {/* Botón dinámico según tipo de transacción */}
+                    <td className="p-5 text-center whitespace-nowrap">
+                      {tipoLower === 'ingreso' && m.cuota_id ? (
+                        /* Recibo de Cobro (Cyan) */
+                        <button 
+                          onClick={() => handleDescargarRecibo(m.cuota_id)}
+                          disabled={isDescargandoCuota}
+                          className={`p-2 rounded-xl transition-all ${
+                            isDescargandoCuota 
+                            ? 'bg-gray-800 text-gray-600 animate-pulse' 
+                            : 'bg-fin-cyan/10 text-fin-cyan hover:bg-fin-cyan hover:text-white border border-fin-cyan/20'
+                          }`}
+                          title="Reimprimir Recibo de Cobro"
+                        >
+                          {isDescargandoCuota ? <Download size={16} /> : <ReceiptText size={16} />}
+                        </button>
+                      ) : tipoLower === 'egreso' && prestamoIdExtraido ? (
+                        /* Comprobante de Desembolso (Violeta) */
+                        <button 
+                          onClick={() => handleDescargarDesembolso(prestamoIdExtraido)}
+                          disabled={isDescargandoPrestamo}
+                          className={`p-2 rounded-xl transition-all ${
+                            isDescargandoPrestamo 
+                            ? 'bg-gray-800 text-gray-600 animate-pulse' 
+                            : 'bg-fin-violet/10 text-fin-violet hover:bg-fin-violet hover:text-white border border-fin-violet/20'
+                          }`}
+                          title="Reimprimir Comprobante de Desembolso"
+                        >
+                          {isDescargandoPrestamo ? <Download size={16} /> : <FileText size={16} />}
+                        </button>
+                      ) : (
+                        <span className="text-gray-700">-</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              }) : (
                 <tr>
                   <td colSpan="5" className="p-20 text-center text-gray-600 italic text-sm">
                     No se encontraron movimientos en este rango de fechas.
