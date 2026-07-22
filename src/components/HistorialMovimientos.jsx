@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpCircle, ArrowDownCircle, Calendar, Filter, ReceiptText, Download, FileText } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Calendar, Filter, ReceiptText, Download, FileText, PlusCircle } from 'lucide-react';
 import api from '../api';
+import NuevoMovimientoModal from './NuevoMovimientoModal';
 
 const HistorialMovimientos = () => {
   const [movimientos, setMovimientos] = useState([]);
   const [filteredMovimientos, setFilteredMovimientos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [descargando, setDescargando] = useState(null);
+  const [modalMovimientoOpen, setModalMovimientoOpen] = useState(false);
   
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
@@ -126,6 +128,13 @@ const HistorialMovimientos = () => {
             </button>
           )}
         </div>
+
+        <button
+          onClick={() => setModalMovimientoOpen(true)}
+          className="flex items-center gap-2 bg-gradient-to-r from-fin-violet to-fin-cyan text-white px-4 py-2.5 rounded-2xl text-xs font-black shadow-neon-violet hover:opacity-90 transition-all active:scale-95"
+        >
+          <PlusCircle size={16} /> REGISTRAR MOVIMIENTO MANUAL
+        </button>
       </div>
 
       {/* Tarjeta de la Tabla */}
@@ -239,6 +248,14 @@ const HistorialMovimientos = () => {
           </table>
         </div>
       </div>
+
+      {/* MODAL DE REGISTRO MANUAL DE MOVIMIENTO */}
+      <NuevoMovimientoModal 
+        isOpen={modalMovimientoOpen}
+        onClose={() => setModalMovimientoOpen(false)}
+        onRefresh={fetchMovimientos}
+      />
+
     </div>
   );
 };
