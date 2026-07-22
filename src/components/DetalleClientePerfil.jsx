@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   TrendingUp,   
   Percent, 
@@ -9,18 +9,15 @@ import {
   FileText,
   ArrowLeft
 } from 'lucide-react';
+import SeccionGarantias from './SeccionGarantias';
     
 export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarRecibo }) {
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('activos'); // Control de pestañas
+  const [activeTab, setActiveTab] = useState('activos');
   const [descargandoDesembolsoId, setDescargandoDesembolsoId] = useState(null);
 
-  // Buscamos los datos dinámicamente al montar el componente
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-  
+  const fetchClientePerfil = useCallback(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     
     const headers = {
@@ -50,6 +47,13 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         setLoading(false);
       });
   }, [clienteId]);
+
+  // Buscamos los datos dinámicamente al montar el componente
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    fetchClientePerfil();
+  }, [fetchClientePerfil]);
 
   // Función local para descargar el Comprobante de Desembolso del Préstamo
   const handleDescargarDesembolso = async (prestamoId) => {
@@ -223,6 +227,13 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
 
       </div>
 
+      {/* --- SECCIÓN DE GARANTÍAS Y DOCUMENTOS --- */}
+      <SeccionGarantias 
+        clienteId={cliente.id} 
+        garantias={cliente.garantias || []} 
+        onRefresh={fetchClientePerfil} 
+      />
+
       {/* 2. SELECTOR DE PESTAÑAS */}
       <div className="flex border-b border-gray-800 gap-6">
         <button
@@ -287,7 +298,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                         </div>
 
                         <div className="flex items-center gap-3">
-                          {/* BOTÓN DESEMBOLSO DE PRÉSTAMO (PUNTO C) */}
+                          {/* BOTÓN DESEMBOLSO DE PRÉSTAMO */}
                           <button
                             onClick={() => handleDescargarDesembolso(prestamo.id)}
                             disabled={isDescargando}

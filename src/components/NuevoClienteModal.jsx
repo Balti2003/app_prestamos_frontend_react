@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Phone, MapPin, IdCard, Save } from 'lucide-react';
+import { X, User, Phone, MapPin, IdCard, Save, FileText } from 'lucide-react';
 import api from '../api';
 
 const NuevoClienteModal = ({ isOpen, onClose, onRefresh }) => {
@@ -11,19 +11,47 @@ const NuevoClienteModal = ({ isOpen, onClose, onRefresh }) => {
     direccion: ''
   });
   const [loading, setLoading] = useState(false);
+  const [tituloGarantia, setTituloGarantia] = useState('');
+  const [archivoGarantia, setArchivoGarantia] = useState(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      await api.post('/clientes/', formData);
+      // 1. Crear el cliente primero
+      const resCliente = await api.post('/clientes/', formData);
+      const nuevoClienteId = resCliente.data.id;
+
+      // 2. Si adjuntó una garantía/documento opcional, la subimos asociada al cliente creado
+      if (archivoGarantia && nuevoClienteId) {
+        const dataGarantia = new FormData();
+        dataGarantia.append('cliente', nuevoClienteId);
+        dataGarantia.append('titulo', tituloGarantia.trim() || 'Garantía Inicial');
+        dataGarantia.append('archivo', archivoGarantia);
+
+        await api.post('/garantias/', dataGarantia, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      // 3. Limpieza y refresco
       onRefresh();
       onClose();
       setFormData({ nombre: '', apellido: '', dni: '', telefono: '', direccion: '' });
-    } catch {
-      alert("Error al crear cliente. Revisa los datos.");
+      setTituloGarantia('');
+      setArchivoGarantia(null);
+
+    } catch (err) {
+      console.error("Error al crear cliente:", err);
+      if (err.response && err.response.data) {
+        const firstError = Object.values(err.response.data)[0];
+        alert("Error: " + firstError);
+      } else {
+        alert("Error al crear cliente. Revisa los datos.");
+      }
     } finally {
       setLoading(false);
     }
@@ -62,10 +90,36 @@ const NuevoClienteModal = ({ isOpen, onClose, onRefresh }) => {
           <ModalInput icon={<MapPin />} placeholder="Dirección completa" value={formData.direccion} 
             onChange={v => setFormData({...formData, direccion: v})} />
 
+          {/* SECCIÓN OPCIONAL: GARANTÍA O DOCUMENTACIÓN */}
+          <div className="border-t border-gray-800 pt-4 mt-2 space-y-3">
+            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+              <FileText size={12} className="text-fin-cyan" /> ADJUNTAR GARANTÍA / DOCUMENTACIÓN (OPCIONAL)
+            </p>
+
+            <div>
+              <input
+                type="text"
+                placeholder="Título (Ej: Recibo de Sueldo / DNI / Título Auto)"
+                className="w-full bg-fin-charcoal border border-gray-700 rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 outline-none focus:border-fin-cyan transition-all"
+                value={tituloGarantia}
+                onChange={(e) => setTituloGarantia(e.target.value)}
+              />
+            </div>
+
+            <div className="relative">
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="w-full bg-fin-charcoal border border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-fin-cyan/20 file:text-fin-cyan hover:file:bg-fin-cyan/30 cursor-pointer"
+                onChange={(e) => setArchivoGarantia(e.target.files[0])}
+              />
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-4 bg-gradient-to-r from-fin-violet to-fin-cyan text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:opacity-90 shadow-neon-cyan transition-all disabled:opacity-50"
+            className="w-full mt-4 bg-gradient-to-r from-fin-violet to-fin-cyan text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:opacity-90 shadow-neon-cyan transition-all disabled:opacity-50 active:scale-[0.98]"
           >
             {loading ? "PROCESANDO..." : <><Save size={20} /> GUARDAR CLIENTE</>}
           </button>

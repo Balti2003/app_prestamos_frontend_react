@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FilePlus, DollarSign, Calendar, Percent, Users, Save, CheckCircle2, FileText } from 'lucide-react';
+import { X, FilePlus, DollarSign, Calendar, Percent, Users, Save, CheckCircle2, FileText, Clock } from 'lucide-react';
 import api from '../api';
 
 const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante }) => {
@@ -11,7 +11,8 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
     monto: '',
     tasa_interes: '20',
     cuotas: '1',
-    frecuencia: 'mensual'
+    frecuencia: 'mensual',
+    fecha_inicio: ''
   });
 
   // Cargar clientes para el buscador
@@ -32,7 +33,7 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
   // Cierre limpio de todo el modal
   const handleCerrarTodo = () => {
     setPrestamoCreado(null);
-    setFormData({ cliente: '', monto: '', tasa_interes: '20', cuotas: '1', frecuencia: 'mensual' });
+    setFormData({ cliente: '', monto: '', tasa_interes: '20', cuotas: '1', frecuencia: 'mensual', fecha_inicio: '' });
     onClose();
     if (onRefresh) onRefresh();
   };
@@ -49,21 +50,20 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
     e.preventDefault();
     setLoading(true);
 
-    const hoy = new Date().toISOString().split('T')[0];
-
     const payload = {
         cliente: parseInt(formData.cliente),
         monto_solicitado: parseFloat(formData.monto),
         tasa_interes: parseFloat(formData.tasa_interes),
         cuotas_totales: parseInt(formData.cuotas),  
         frecuencia: formData.frecuencia.toLowerCase(),
-        fecha_inicio: hoy
+        // Si ingresó fecha la enviamos; si está vacía enviamos null para que Django tome la fecha/hora actual
+        fecha_inicio: formData.fecha_inicio ? formData.fecha_inicio : null
     };
 
     try {
         const response = await api.post('/prestamos/', payload);
 
-        // Si se crea con éxito, activamos la vista de confirmación en lugar de usar confirm()
+        // Si se crea con éxito, activamos la vista de confirmación
         if (response.data && response.data.id) {
           setPrestamoCreado(response.data);
         } else {
@@ -89,7 +89,7 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
 
       <div className="relative bg-fin-charcoal-light w-full max-w-2xl rounded-3xl border border-gray-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         
-        {/* VISTA 1: CONFIRMACIÓN Y DESCARGA (REEMPLAZA AL WINDOW.CONFIRM) */}
+        {/* VISTA 1: CONFIRMACIÓN Y DESCARGA */}
         {prestamoCreado ? (
           <div className="p-8 text-center space-y-6">
             <div className="w-16 h-16 bg-green-500/10 border border-green-500/20 text-green-400 rounded-2xl flex items-center justify-center mx-auto">
@@ -160,7 +160,7 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
                   <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-fin-violet" size={18} />
                   <select 
                     required
-                    className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 pl-12 pr-4 text-white outline-none focus:border-fin-violet transition-all appearance-none"
+                    className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 pl-12 pr-4 text-white outline-none focus:border-fin-violet transition-all appearance-none cursor-pointer"
                     value={formData.cliente}
                     onChange={e => setFormData({...formData, cliente: e.target.value})}
                   >
@@ -175,27 +175,27 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
               {/* Monto y Tasa */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Monto a Entregar</label>
-                <ModalInput icon={<DollarSign />} type="number" placeholder="Ej: 50000" 
+                <ModalInput icon={<DollarSign />} type="number" placeholder="Ej: 50000" required={true}
                   value={formData.monto} onChange={v => setFormData({...formData, monto: v})} />
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Tasa de Interés (%)</label>
-                <ModalInput icon={<Percent />} type="number" placeholder="Ej: 20" 
+                <ModalInput icon={<Percent />} type="number" placeholder="Ej: 20" required={true}
                   value={formData.tasa_interes} onChange={v => setFormData({...formData, tasa_interes: v})} />
               </div>
 
               {/* Cuotas y Frecuencia */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Cantidad de Cuotas</label>
-                <ModalInput icon={<Calendar />} type="number" placeholder="Ej: 6" 
+                <ModalInput icon={<Calendar />} type="number" placeholder="Ej: 6" required={true}
                   value={formData.cuotas} onChange={v => setFormData({...formData, cuotas: v})} />
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Frecuencia de Cobro</label>
                 <select 
-                  className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 px-4 text-white outline-none focus:border-fin-violet transition-all"
+                  className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 px-4 text-white outline-none focus:border-fin-violet transition-all cursor-pointer"
                   value={formData.frecuencia}
                   onChange={e => setFormData({...formData, frecuencia: e.target.value})}
                 >
@@ -203,6 +203,27 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
                   <option value="semanal">Semanal</option>
                   <option value="mensual">Mensual</option>
                 </select>
+              </div>
+
+              {/* Campo de Fecha de Inicio Manual (Opcional) */}
+              <div className="md:col-span-2 space-y-2">
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                    Fecha de Inicio
+                  </label>
+                  <span className="text-[10px] text-gray-500 italic">Opcional</span>
+                </div>
+                <ModalInput 
+                  icon={<Clock />} 
+                  type="date" 
+                  placeholder="" 
+                  required={false}
+                  value={formData.fecha_inicio} 
+                  onChange={v => setFormData({...formData, fecha_inicio: v})} 
+                />
+                <p className="text-[10px] text-gray-500 italic ml-1">
+                  * Si se deja vacío, el sistema asignará automáticamente la fecha y hora actual.
+                </p>
               </div>
 
               {/* PANEL DE PREVISIÓN (Calculadora) */}
@@ -239,13 +260,13 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
   );
 };
 
-const ModalInput = ({ icon, type, placeholder, value, onChange }) => (
+const ModalInput = ({ icon, type, placeholder, value, onChange, required = true }) => (
   <div className="relative group">
     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-fin-violet transition-colors">
       {React.cloneElement(icon, { size: 18 })}
     </div>
     <input
-      required
+      required={required}
       type={type}
       className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-600 outline-none focus:border-fin-violet focus:ring-1 focus:ring-fin-violet transition-all"
       placeholder={placeholder}
