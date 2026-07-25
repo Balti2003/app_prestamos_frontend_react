@@ -1,19 +1,26 @@
-import { useState, useEffect } from 'react';
-import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare, Layers } from 'lucide-react';
 import api from '../api';
 
 const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
   const [clientes, setClientes] = useState([]);
+  const [prestamosCliente, setPrestamosCliente] = useState([]);
+  const [selectedPrestamoId, setSelectedPrestamoId] = useState('');
   const [cuotasDisponibles, setCuotasDisponibles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingCuotas, setLoadingCuotas] = useState(false);
-  const [step, setStep] = useState(1); // 1: Buscar cliente, 2: Elegir Cuota
+  const [step, setStep] = useState(1); // 1: Buscar cliente, 2: Seleccionar Préstamo/Ingresar Pago
   const [selectedCliente, setSelectedCliente] = useState(null);
-  const [selectedCuota, setSelectedCuota] = useState('');
+  const [montoIngresado, setMontoIngresado] = useState('');
   const [pagoExitoso, setPagoExitoso] = useState(false);
   const [idCuotaPagada, setIdCuotaPagada] = useState(null);
-  // eslint-disable-next-line no-unused-vars
-  const [selectedCuotaObj, setSelectedCuotaObj] = useState(null);
+
+  const parsearMonto = (valor) => {
+    if (valor === null || valor === undefined) return 0;
+    const limpio = String(valor).replace(/\$/g, '').replace(/,/g, '.').trim();
+    const num = parseFloat(limpio);
+    return isNaN(num) ? 0 : num;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -22,19 +29,14 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep(1);
       setSelectedCliente(null);
+      setPrestamosCliente([]);
+      setSelectedPrestamoId('');
       setCuotasDisponibles([]);
-      setSelectedCuota('');
+      setMontoIngresado('');
       setPagoExitoso(false);
       setIdCuotaPagada(null);
     }
   }, [isOpen]);
-
-  // Cuando cambia el select:
-  useEffect(() => {
-      const objetoEncontrado = cuotasDisponibles.find(c => c.cuota_id === parseInt(selectedCuota));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedCuotaObj(objetoEncontrado);
-  }, [selectedCuota, cuotasDisponibles]);
 
   const fetchClientes = async () => {
     try {
@@ -48,12 +50,20 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     setLoadingCuotas(true);
     setStep(2);
     try {
-      // Llamamos al nuevo endpoint de cuotas secuenciales
       const res = await api.get(`/clientes/${cliente.id}/cuotas_cobrables/`);
-      setCuotasDisponibles(res.data);
-      if (res.data.length > 0) {
-        // Pre-seleccionamos la primera opción disponible
-        setSelectedCuota(res.data[0].cuota_id);
+      const cuotas = res.data || [];
+      
+      // Agrupamos o filtramos los préstamos únicos que tiene el cliente
+      const idsPrestamos = [...new Set(cuotas.map(c => c.prestamo_id || c.prestamo))].filter(Boolean);
+      setPrestamosCliente(idsPrestamos);
+
+      // Si tiene al menos un préstamo, preseleccionamos el primero
+      if (idsPrestamos.length > 0) {
+        const firstId = idsPrestamos[0];
+        setSelectedPrestamoId(firstId.toString());
+        filtrarYSetearCuotas(cuotas, firstId);
+      } else {
+        setCuotasDisponibles([]);
       }
     } catch (err) {
       console.error("Error al obtener cuotas cobrables", err);
@@ -62,28 +72,117 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     }
   };
 
-  // eslint-disable-next-line no-unused-vars
-  const handleSelectCuota = (id) => {
-    setSelectedCuota(id);
+  // Filtra las cuotas para que solo pertenezcan al préstamo seleccionado
+  const filtrarYSetearCuotas = (todasLasCuotas, prestamoId) => {
+    const cuotasDelPrestamo = todasLasCuotas.filter(
+      c => String(c.prestamo_id || c.prestamo) === String(prestamoId)
+    );
+    setCuotasDisponibles(cuotasDelPrestamo);
+
+    if (cuotasDelPrestamo.length > 0) {
+      const primeraCuota = cuotasDelPrestamo[0];
+      
+      // Calculamos el saldo pendiente real considerando los abonos parciales previos
+      const total = parsearMonto(primeraCuota.monto_total ?? primeraCuota.monto ?? 0);
+      const pagadoAnteriormente = parsearMonto(primeraCuota.monto_pagado);
+      
+      const saldoRemanente = primeraCuota.saldo_pendiente !== undefined && primeraCuota.saldo_pendiente !== null
+        ? parsearMonto(primeraCuota.saldo_pendiente)
+        : Math.max(0, total - pagadoAnteriormente);
+
+      setMontoIngresado(saldoRemanente.toString());
+    } else {
+      setMontoIngresado('');
+    }
   };
+
+  const handleCambioPrestamo = (nuevoPrestamoId) => {
+    setSelectedPrestamoId(nuevoPrestamoId);
+    if (selectedCliente) {
+      api.get(`/clientes/${selectedCliente.id}/cuotas_cobrables/`).then(res => {
+        filtrarYSetearCuotas(res.data || [], nuevoPrestamoId);
+      });
+    }
+  };
+
+  // Simulación en tiempo real limitada EXCLUSIVAMENTE a las cuotas del préstamo elegido
+  const simulacion = useMemo(() => {
+    const monto = parsearMonto(montoIngresado);
+    if (monto <= 0 || !cuotasDisponibles || cuotasDisponibles.length === 0) {
+      return { desgloses: [], sobrante: 0 };
+    }
+
+    let disponible = monto;
+
+    const cuotasOrdenadas = [...cuotasDisponibles].sort(
+      (a, b) => (a.numero_cuota || 0) - (b.numero_cuota || 0)
+    );
+
+    const desgloses = [];
+
+    for (const c of cuotasOrdenadas) {
+      if (disponible <= 0) break;
+
+      const moraCuota = parsearMonto(c.mora || c.mora_actual);
+      const totalCuota = parsearMonto(c.monto_total ?? c.monto ?? 0);
+      const pagadoAnteriormente = parsearMonto(c.monto_pagado);
+
+      // Calculamos el saldo capital pendiente real para esta cuota
+      // eslint-disable-next-line no-useless-assignment
+      let saldoCapital = 0;
+      if (c.saldo_pendiente !== undefined && c.saldo_pendiente !== null) {
+        saldoCapital = parsearMonto(c.saldo_pendiente);
+      } else {
+        saldoCapital = Math.max(0, totalCuota - pagadoAnteriormente);
+      }
+
+      let moraAbonada = 0;
+      let capitalAbonado = 0;
+
+      // 1. Cobrar mora
+      if (moraCuota > 0) {
+        moraAbonada = Math.min(disponible, moraCuota);
+        disponible -= moraAbonada;
+      }
+
+      // 2. Cobrar capital/saldo pendiente
+      if (disponible > 0 && saldoCapital > 0) {
+        capitalAbonado = Math.min(disponible, saldoCapital);
+        disponible -= capitalAbonado;
+      }
+
+      const resta = Math.max(0, saldoCapital - capitalAbonado);
+
+      desgloses.push({
+        numero_cuota: c.numero_cuota,
+        moraAbonada,
+        capitalAbonado,
+        saldoRestante: resta,
+        saldada: resta <= 0.01
+      });
+    }
+
+    return { desgloses, sobrante: disponible };
+  }, [montoIngresado, cuotasDisponibles]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedCuota) return;
+    const monto = parsearMonto(montoIngresado);
+    if (monto <= 0 || !selectedPrestamoId) return;
+
     setLoading(true);
 
     try {
-      const response = await api.post(`/prestamos/registrar_pago_exacto/`, {
-        cuota_id: selectedCuota,
-        monto: cuotaActivaInfo.monto
+      const response = await api.post(`/prestamos/${selectedPrestamoId}/registrar-pago/`, {
+        monto: monto
       });
 
-      // Guardamos el ID que nos dio el backend para el PDF
-      setIdCuotaPagada(response.data.cuota_id);
-      
-      // En lugar de cerrar, mostramos la pantalla de éxito
+      if (response.data.desglose && response.data.desglose.length > 0) {
+        setIdCuotaPagada(response.data.desglose[0].cuota_id || response.data.cuota_id);
+      }
+
       setPagoExitoso(true);
-      onRefresh(); 
+      if (onRefresh) onRefresh();
 
     } catch (err) {
       alert(err.response?.data?.error || "Error al registrar el pago");
@@ -92,7 +191,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     }
   };
 
-  // Función para descargar solo si el admin hace clic
   const descargarPDF = async () => {
     try {
       const response = await api.get(`/cuotas/${idCuotaPagada}/generar_recibo/`, {
@@ -109,17 +207,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       alert("Error al generar el PDF");
     }
   };
-
-  // eslint-disable-next-line no-unused-vars
-  const checkMora = (fechaVencimiento, pagada) => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0); // Limpiamos horas para comparar solo fechas
-    const vencimiento = new Date(fechaVencimiento);
-    return vencimiento < hoy && !pagada;
-  };
-
-  // Buscamos el objeto de la cuota seleccionada para mostrar el precio en pantalla
-  const cuotaActivaInfo = cuotasDisponibles.find(c => c.cuota_id === parseInt(selectedCuota));
 
   if (!isOpen) return null;
 
@@ -147,22 +234,24 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
               
               <h3 className="text-2xl font-black text-white mb-2 uppercase italic">¡Pago Registrado!</h3>
               <p className="text-gray-400 text-sm mb-8">
-                La cuota ha sido asentada correctamente y el movimiento de caja fue generado.
+                El cobro fue procesado correctamente y asentado en caja.
               </p>
 
               <div className="flex flex-col w-full gap-3">
-                <button 
-                  onClick={descargarPDF}
-                  className="w-full bg-white text-black py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-fin-cyan hover:text-white transition-all group"
-                >
-                  <ReceiptText size={18} /> DESCARGAR COMPROBANTE
-                </button>
+                {idCuotaPagada && (
+                  <button 
+                    onClick={descargarPDF}
+                    className="w-full bg-white text-black py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-fin-cyan hover:text-white transition-all group"
+                  >
+                    <ReceiptText size={18} /> DESCARGAR COMPROBANTE
+                  </button>
+                )}
                 
                 <button 
                   onClick={onClose}
                   className="w-full bg-fin-charcoal border border-gray-800 text-gray-400 py-4 rounded-xl font-bold hover:text-white transition-all"
                 >
-                  CONTINUAR SIN RECIBO
+                  CERRAR
                 </button>
               </div>
             </div>
@@ -170,7 +259,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
             step === 1 ? (
               /* PASO 1: SELECCIÓN DE CLIENTE */
               <div className="space-y-4">
-                <p className="text-gray-400 text-sm text-center">Selecciona el cliente para ver sus cuotas habilitadas</p>
+                <p className="text-gray-400 text-sm text-center">Seleccioná el cliente que realizará el pago</p>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                   {clientes.map(c => (
                     <button 
@@ -193,101 +282,103 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                 </div>
               </div>
             ) : (
-              /* PASO 2: SELECCIÓN DE CUOTA Y MONTO */
+              /* PASO 2: SELECCIÓN DE PRÉSTAMO Y MONTO */
               <form onSubmit={handleSubmit} className="space-y-6 animate-in slide-in-from-right-4">
-                <div className="bg-fin-dark-bg/50 p-4 rounded-2xl border border-gray-800 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-fin-violet/20 flex items-center justify-center text-fin-violet font-black">
-                    {selectedCliente.nombre[0]}
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Cliente</p>
-                    <p className="text-lg font-black text-white">{selectedCliente.nombre} {selectedCliente.apellido}</p>
+                
+                {/* INFO DEL CLIENTE */}
+                <div className="bg-fin-dark-bg/50 p-4 rounded-2xl border border-gray-800 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-fin-violet/20 flex items-center justify-center text-fin-violet font-black">
+                      {selectedCliente.nombre[0]}
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Cliente</p>
+                      <p className="text-lg font-black text-white">{selectedCliente.nombre} {selectedCliente.apellido}</p>
+                    </div>
                   </div>
                 </div>
 
+                {/* SELECTOR DE PRÉSTAMO SI TIENE MÁS DE UNO */}
+                {prestamosCliente.length > 1 && (
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Layers size={14} className="text-fin-violet" />
+                      Seleccionar Contrato a Cobrar
+                    </label>
+                    <select
+                      value={selectedPrestamoId}
+                      onChange={(e) => handleCambioPrestamo(e.target.value)}
+                      className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3 px-4 text-white font-bold outline-none focus:border-fin-violet transition-colors"
+                    >
+                      {prestamosCliente.map((pId) => (
+                        <option key={pId} value={pId}>
+                          Préstamo / Contrato #{pId}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {loadingCuotas ? (
-                  <p className="text-center text-xs text-fin-cyan animate-pulse py-4 font-bold">Buscando plan de pagos...</p>
+                  <p className="text-center text-xs text-fin-cyan animate-pulse py-4 font-bold">Buscando cuotas del contrato...</p>
                 ) : cuotasDisponibles.length === 0 ? (
                   <div className="text-center py-6 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                    <p className="text-red-400 text-sm font-bold">Este cliente no registra cuotas pendientes.</p>
+                    <p className="text-red-400 text-sm font-bold">No hay cuotas pendientes para este contrato.</p>
                   </div>
                 ) : (
                   <div className="space-y-5">
+                    {/* CAMPO EDITABLE DE MONTO */}
                     <div className="flex flex-col space-y-2">
-                      <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Seleccionar Cuota Habilitada</label>
-                      <select 
-                        className="w-full bg-fin-charcoal border border-gray-800 rounded-xl py-3 px-4 text-white font-medium outline-none focus:border-fin-violet transition-all"
-                        value={selectedCuota}
-                        onChange={e => setSelectedCuota(e.target.value)}
-                      >
-                        {cuotasDisponibles.map(c => {
-                          const hoy = new Date();
-                          hoy.setHours(0,0,0,0);
-                          const vencimiento = new Date(c.fecha_vencimiento);
-                          const estaVencida = vencimiento < hoy;
-
-                          return (
-                            <option key={c.cuota_id} value={c.cuota_id}>
-                              {c.prestamo_nombre} - Cuota #{c.numero_cuota} {estaVencida ? '(¡VENCIDA!)' : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
+                      <label className="text-xs font-black text-gray-500 uppercase tracking-widest">
+                        Monto Ingresado para Préstamo #{selectedPrestamoId} ($)
+                      </label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-fin-cyan" size={20} />
+                        <input 
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={montoIngresado}
+                          onChange={(e) => setMontoIngresado(e.target.value)}
+                          className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-4 pl-12 pr-4 text-xl font-mono font-black text-white outline-none focus:border-fin-cyan transition-colors"
+                          autoFocus
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-500 italic">
+                        * Acepta pagos parciales, exactos o adelanto de cuotas para este contrato.
+                      </p>
                     </div>
 
-                    {/* DETALLE DE MORA (SE MUESTRA SI HAY ATRASO) */}
-                    {cuotaActivaInfo?.dias_atraso > 0 && (
-                      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl space-y-2 animate-in fade-in slide-in-from-top-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center gap-1">
-                            <AlertCircle size={12} /> Atraso detectado
-                          </span>
-                          <span className="text-xs font-bold text-red-500">{cuotaActivaInfo.dias_atraso} días</span>
-                        </div>
-                        <div className="flex justify-between items-center border-t border-red-500/10 pt-2">
-                          <span className="text-xs text-gray-400 font-bold">RECARGO POR MORA:</span>
-                          <span className="text-sm font-black text-red-500">+ ${parseFloat(cuotaActivaInfo.mora).toLocaleString()}</span>
+                    {/* PREVISUALIZACIÓN DE CASCADA (SOLO DE ESTE PRÉSTAMO) */}
+                    {simulacion.desgloses.length > 0 && (
+                      <div className="p-4 bg-fin-dark-bg/60 border border-gray-800 rounded-2xl space-y-2">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block border-b border-gray-800 pb-1.5">
+                          Distribución en Contrato #{selectedPrestamoId}
+                        </span>
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                          {simulacion.desgloses.map((d) => (
+                            <div key={d.numero_cuota} className="flex justify-between items-center text-xs font-mono py-1 border-b border-gray-800/40 last:border-0">
+                              <span className="text-gray-300 font-bold">Cuota #{d.numero_cuota}</span>
+                              <div className="text-right">
+                                {d.moraAbonada > 0 && (
+                                  <span className="text-red-400 text-[10px] block">+${d.moraAbonada.toLocaleString('es-AR', { minimumFractionDigits: 2 })} Mora</span>
+                                )}
+                                <span className="text-fin-cyan font-bold">${d.capitalAbonado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                                {d.saldada ? (
+                                  <span className="text-[10px] text-emerald-400 font-bold ml-2">✓ Completada</span>
+                                ) : (
+                                  <span className="text-[10px] text-amber-400 font-bold ml-2">(Resta ${d.saldoRestante.toLocaleString('es-AR', { minimumFractionDigits: 2 })})</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
 
-                    <div className="flex flex-col space-y-2">
-                      <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Monto Total a Cobrar</label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-fin-cyan" size={20} />
-                        <input 
-                          disabled
-                          type="text"
-                          // El estilo cambiará a rojo automáticamente si hay días de atraso
-                          className={`w-full bg-fin-charcoal/50 border rounded-xl py-4 pl-12 pr-4 text-xl font-black cursor-not-allowed transition-colors duration-300 ${
-                            cuotaActivaInfo?.dias_atraso > 0 
-                              ? 'border-red-500/50 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.1)]' 
-                              : 'border-gray-800 text-gray-400'
-                          }`}
-                          // Mostramos el monto total que ya incluye la mora calculada en el servidor
-                          value={cuotaActivaInfo ? `$${parseFloat(cuotaActivaInfo.monto).toLocaleString('es-AR')}` : '$0'}
-                        />
-                        {cuotaActivaInfo?.dias_atraso > 0 && (
-                          <div className="flex justify-between items-center px-2 animate-in fade-in slide-in-from-top-1">
-                            <span className="text-[10px] font-bold text-red-500/80 uppercase">
-                              Incluye multa por {cuotaActivaInfo.dias_atraso} días de atraso
-                            </span>
-                            <span className="text-[10px] font-black text-red-500">
-                              + ${parseFloat(cuotaActivaInfo.mora).toLocaleString('es-AR')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-gray-600 font-bold uppercase tracking-tight">
-                        {cuotaActivaInfo?.dias_atraso > 0 
-                          ? "* El monto incluye capital + intereses punitorios por mora."
-                          : "* El sistema no acepta importes fraccionados ni sobrepagos."}
-                      </p>
-                    </div>
-                    
                     <div className="flex items-center gap-2 text-xs text-gray-500 px-1">
                       <Calendar size={14} />
-                      <span>Fecha contable: {new Date().toLocaleDateString()}</span>
+                      <span>Fecha contable: {new Date().toLocaleDateString('es-AR')}</span>
                     </div>
                   </div>
                 )}
@@ -302,10 +393,10 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                   </button>
                   <button 
                     type="submit"
-                    disabled={loading || cuotasDisponibles.length === 0}
+                    disabled={loading || cuotasDisponibles.length === 0 || parsearMonto(montoIngresado) <= 0}
                     className="flex-[2] bg-gradient-to-r from-fin-violet to-fin-cyan text-white py-4 rounded-xl font-black shadow-neon-cyan flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
-                    {loading ? "LIQUIDANDO..." : <><CheckSquare size={18} /> REALIZAR COBRO</>}
+                    {loading ? "PROCESANDO..." : <><CheckSquare size={18} /> ASENTAR COBRO</>}
                   </button>
                 </div>
               </form>
