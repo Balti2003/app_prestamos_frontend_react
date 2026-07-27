@@ -8,11 +8,12 @@ import RegistrarPagoModal from './RegistrarPagoModal';
 import HistorialMovimientos from './HistorialMovimientos';
 import DetalleClientePerfil from './DetalleClientePerfil';
 import MiPerfilUsuario from './MiPerfilUsuario';
+import ListaPrestamos from './ListaPrestamos';
 import { AperturaCajaModal, ArqueoCierreModal } from './CajaModales';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
   CalendarDays, LogOut, UserPlus, FilePlus, ReceiptText, Play, 
-  CheckCircle2, FolderLock 
+  CheckCircle2, FolderLock, FileText, Calculator, Users
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -233,6 +234,12 @@ const Dashboard = ({ onLogout }) => {
                   RESUMEN
               </button>
               <button 
+                onClick={() => { setSelectedClienteId(null); setActiveTab('prestamos'); }}
+                className={`flex-1 sm:flex-initial text-center px-3 py-2 rounded-lg text-[11px] sm:text-xs font-black transition-all ${activeTab === 'prestamos' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
+              >
+                  PRÉSTAMOS
+              </button>
+              <button 
                 onClick={() => { setSelectedClienteId(null); setActiveTab('clientes'); }}
                 className={`flex-1 sm:flex-initial text-center px-3 py-2 rounded-lg text-[11px] sm:text-xs font-black transition-all ${activeTab === 'clientes' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
               >
@@ -290,7 +297,7 @@ const Dashboard = ({ onLogout }) => {
         </div>
       </header>
 
-      {/* CONTENIDO PRINCIPAL CON RENDERIZADO CONDICIONAL TRIPLE */}
+      {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:p-6 overflow-hidden flex flex-col">
         
         {activeTab === 'resumen' && (
@@ -376,36 +383,38 @@ const Dashboard = ({ onLogout }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
               <StatCard 
                 title="SALDO EN CAJA" 
-                value={`$${metricas_financieras.saldo_caja_disponible.toLocaleString()}`}
+                value={`$${metricas_financieras?.saldo_caja_disponible?.toLocaleString() ?? 0}`}
                 icon={<DollarSign />}
                 color="cyan"
                 subtitle="Dinero líquido listo para prestar"
               />
               <StatCard 
                 title="GANANCIA REAL" 
-                value={`$${metricas_financieras.rentabilidad_acumulada.toLocaleString()}`}
+                value={`$${metricas_financieras?.rentabilidad_acumulada?.toLocaleString() ?? 0}`}
                 icon={<TrendingUp />}
                 color="violet"
                 subtitle="Suma de intereses y mora cobrados"
               />
               <StatCard 
                 title="CAPITAL PRESTADO" 
-                value={`$${metricas_financieras.capital_en_calle.toLocaleString()}`}
+                value={`$${metricas_financieras?.capital_en_calle?.toLocaleString() ?? 0}`}
                 icon={<ArrowUpRight />}
                 color="gray"
                 subtitle="Monto base pendiente de cobro"
               />
               <StatCard 
                 title="% MORA ACTIVA" 
-                value={`${estado_cartera.tasa_mora_porcentaje}%`}
+                value={`${estado_cartera?.tasa_mora_porcentaje ?? 0}%`}
                 icon={<AlertCircle />}
                 color="red"
-                subtitle={`${estado_cartera.prestamos_en_mora} préstamos vencidos`}
+                subtitle={`${estado_cartera?.prestamos_en_mora ?? 0} préstamos vencidos`}
               />
             </div>
 
             {/* Grid Secundario */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Columna Izquierda: Gráfico de Tendencias */}
               <div className="lg:col-span-2 bg-fin-charcoal p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col group transition hover:border-fin-violet/40">
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -438,28 +447,73 @@ const Dashboard = ({ onLogout }) => {
                   </div>
               </div>
 
+              {/* Columna Derecha: Métricas de Cartera Operativa */}
               <div className="bg-fin-charcoal-light p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col transition hover:border-fin-violet/40">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                   <CalendarDays className="text-fin-violet h-5 w-5" />
-                  Operaciones del Día
+                  Métricas de Cartera
                 </h3>
-                <div className="space-y-5 flex-grow">
-                  <div className="p-5 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40">
-                    <span className="text-fin-gray-text text-xs uppercase font-bold tracking-widest">Cobros esperados hoy</span>
-                    <p className="font-black text-3xl text-white mt-1">${operativo_hoy.cobros_pendientes_hoy.toLocaleString()}</p>
+                
+                <div className="space-y-4 flex-grow">
+                  
+                  {/* Cobros esperados hoy */}
+                  <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40 flex items-center justify-between">
+                    <div>
+                      <span className="text-fin-gray-text text-[10px] uppercase font-bold tracking-widest block">Cobros esperados hoy</span>
+                      <p className="font-black text-2xl text-white mt-0.5">${operativo_hoy?.cobros_pendientes_hoy?.toLocaleString() ?? 0}</p>
+                    </div>
+                    <div className="p-2.5 bg-fin-cyan/10 text-fin-cyan rounded-xl border border-fin-cyan/20">
+                      <ReceiptText size={18} />
+                    </div>
                   </div>
-                  <div className="p-5 bg-fin-charcoal rounded-2xl border border-gray-700">
-                    <span className="text-fin-gray-text text-xs uppercase font-bold tracking-widest">Cartera total de clientes</span>
-                    <p className="font-black text-3xl text-white mt-1">{operativo_hoy.clientes_total}</p>
+
+                  {/* NUEVA SECCIÓN: Préstamos Activos & Promedio Otorgado */}
+                  <div className="grid grid-cols-2 gap-3">
+                    
+                    {/* Préstamos Activos */}
+                    <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-violet/40">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-fin-gray-text text-[9px] uppercase font-bold tracking-wider">Préstamos Activos</span>
+                        <FileText size={14} className="text-fin-violet" />
+                      </div>
+                      <p className="font-black text-xl text-white">{estado_cartera?.prestamos_activos ?? 0}</p>
+                      <span className="text-[9px] text-gray-500 font-bold">Vigentes en cartera</span>
+                    </div>
+
+                    {/* Promedio Otorgado */}
+                    <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-fin-gray-text text-[9px] uppercase font-bold tracking-wider">Promedio Otorgado</span>
+                        <Calculator size={14} className="text-fin-cyan" />
+                      </div>
+                      <p className="font-black text-xl text-white">${Math.round(estado_cartera?.promedio_prestamo ?? 0).toLocaleString()}</p>
+                      <span className="text-[9px] text-gray-500 font-bold">Por contrato</span>
+                    </div>
+
                   </div>
-                  <div className="mt-2 p-4 bg-red-950/20 border border-red-900/50 rounded-2xl">
+
+                  {/* Cartera total clientes */}
+                  <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 flex items-center justify-between">
+                    <div>
+                      <span className="text-fin-gray-text text-[10px] uppercase font-bold tracking-widest block">Cartera total clientes</span>
+                      <p className="font-black text-2xl text-white mt-0.5">{operativo_hoy?.clientes_total ?? 0}</p>
+                    </div>
+                    <div className="p-2.5 bg-gray-800 text-gray-400 rounded-xl border border-gray-700">
+                      <Users size={18} />
+                    </div>
+                  </div>
+
+                  {/* Alerta Crítica */}
+                  <div className="p-4 bg-red-950/20 border border-red-900/50 rounded-2xl">
                     <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Alerta Crítica</p>
                     <p className="text-gray-300 text-xs leading-relaxed">
-                      Hay {estado_cartera.prestamos_en_mora} cuentas que requieren gestión de cobranza inmediata.
+                      Hay <span className="font-bold text-red-400">{estado_cartera?.prestamos_en_mora ?? 0}</span> cuentas que requieren gestión de cobranza inmediata.
                     </p>
                   </div>
+
                 </div>
               </div>
+
             </div>
           </>
         )}
@@ -493,6 +547,15 @@ const Dashboard = ({ onLogout }) => {
           <MiPerfilUsuario 
             onVolverALaHome={() => setActiveTab('resumen')} 
           />
+        )}
+
+        {activeTab === 'prestamos' && (
+          <div className="w-full overflow-hidden">
+            <ListaPrestamos onVerCliente={(clienteId) => {
+              setSelectedClienteId(clienteId);
+              setActiveTab('clientes');
+            }} />
+          </div>
         )}
       </main>
 
