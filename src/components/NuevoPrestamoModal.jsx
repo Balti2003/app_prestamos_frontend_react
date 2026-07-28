@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, FilePlus, DollarSign, Calendar, Percent, Users, Save, CheckCircle2, FileText, Clock } from 'lucide-react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 
 const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante }) => {
+  const { esAdmin } = useAuth();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [prestamoCreado, setPrestamoCreado] = useState(null);
@@ -17,7 +19,7 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
 
   // Cargar clientes para el buscador
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && esAdmin) {
       const fetchClientes = async () => {
         try {
           const res = await api.get('/clientes/');
@@ -26,9 +28,10 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
       };
       fetchClientes();
     }
-  }, [isOpen]);
+  }, [isOpen, esAdmin]);
 
-  if (!isOpen) return null;
+  // 3. Bloqueo de seguridad: si no está abierto o no es Administrador, no renderiza nada
+  if (!isOpen || !esAdmin) return null;
 
   // Cierre limpio de todo el modal
   const handleCerrarTodo = () => {
@@ -50,7 +53,6 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
     e.preventDefault();
     setLoading(true);
 
-    // Generamos la fecha de hoy en formato YYYY-MM-DD local
     const hoy = new Date().toISOString().split('T')[0];
 
     const payload = {
@@ -59,7 +61,6 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
       tasa_interes: parseFloat(formData.tasa_interes),
       cuotas_totales: parseInt(formData.cuotas),  
       frecuencia: formData.frecuencia.toLowerCase(),
-      // Si la ingresó usa esa, si la dejó vacía usa 'hoy' (YYYY-MM-DD)
       fecha_inicio: formData.fecha_inicio ? formData.fecha_inicio : hoy
     };
 

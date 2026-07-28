@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import { Search, Phone, IdCard, ExternalLink, Eye, Edit, Trash2 } from 'lucide-react';
 import ClienteDetallePanel from './ClienteDetallePanel';
 import EditarClienteModal from './EditarClienteModal';
 import ConfirmModal from './ConfirmModal';
 
 const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
+  const { esAdmin } = useAuth();
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [clienteAEditar, setClienteAEditar] = useState(null);
   const [modalEditarOpen, setModalEditarOpen] = useState(false);
@@ -34,19 +36,22 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
   };
 
   const handleOpenEditar = (cliente) => {
+    // Bloqueo de seguridad para evitar abrir el modal si no es Admin
+    if (!esAdmin) return;
     setClienteAEditar(cliente);
     setModalEditarOpen(true);
   };
 
   // Solicitar eliminación abriendo el modal de confirmación
   const handleSolicitarEliminacion = (cliente) => {
+    if (!esAdmin) return;
     setClienteAEliminar(cliente);
     setModalConfirmOpen(true);
   };
 
   // Confirmar eliminación en el backend
   const handleConfirmarEliminacion = async () => {
-    if (!clienteAEliminar) return;
+    if (!clienteAEliminar || !esAdmin) return;
     try {
       setDeleting(true);
       await api.delete(`/clientes/${clienteAEliminar.id}/`);
@@ -56,7 +61,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
     } catch (err) {
       const errorServidor = err.response?.data?.error || "No se puede eliminar este cliente porque posee créditos u operaciones registradas.";
       
-      // Cerramos el modal de confirmación y mostramos la advertencia custom
       setModalConfirmOpen(false);
       setClienteAEliminar(null);
       setMensajeAdvertencia(errorServidor);
@@ -194,23 +198,27 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                         <ExternalLink size={18} />
                       </button>
 
-                      {/* BOTÓN EDITAR */}
-                      <button 
-                        onClick={() => handleOpenEditar(cliente)}
-                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-amber-400 hover:text-white transition-all flex-shrink-0"
-                        title="Editar Información del Cliente"
-                      >
-                        <Edit size={18} />
-                      </button>
+                      {/* BOTÓN EDITAR (SOLO PARA ADMINISTRADORES) */}
+                      {esAdmin && (
+                        <button 
+                          onClick={() => handleOpenEditar(cliente)}
+                          className="p-2 hover:bg-fin-charcoal-light rounded-lg text-amber-400 hover:text-white transition-all flex-shrink-0"
+                          title="Editar Información del Cliente"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      )}
 
-                      {/* BOTÓN ELIMINAR */}
-                      <button 
-                        onClick={() => handleSolicitarEliminacion(cliente)}
-                        className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-200 transition-all flex-shrink-0"
-                        title="Eliminar Cliente"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {/* BOTÓN ELIMINAR (SOLO PARA ADMINISTRADORES) */}
+                      {esAdmin && (
+                        <button 
+                          onClick={() => handleSolicitarEliminacion(cliente)}
+                          className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-200 transition-all flex-shrink-0"
+                          title="Eliminar Cliente"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -226,29 +234,33 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
         </div>
       </div>
 
-      {/* Modal de Edición de Cliente */}
-      <EditarClienteModal 
-        isOpen={modalEditarOpen}
-        onClose={() => {
-          setModalEditarOpen(false);
-          setClienteAEditar(null);
-        }}
-        cliente={clienteAEditar}
-        onRefresh={fetchClientes}
-      />
+      {/* Modal de Edición de Cliente (Solo si es Administrador) */}
+      {esAdmin && (
+        <EditarClienteModal 
+          isOpen={modalEditarOpen}
+          onClose={() => {
+            setModalEditarOpen(false);
+            setClienteAEditar(null);
+          }}
+          cliente={clienteAEditar}
+          onRefresh={fetchClientes}
+        />
+      )}
 
       {/* Modal de Confirmación de Borrado */}
-      <ConfirmModal
-        isOpen={modalConfirmOpen}
-        onClose={() => {
-          setModalConfirmOpen(false);
-          setClienteAEliminar(null);
-        }}
-        onConfirm={handleConfirmarEliminacion}
-        loading={deleting}
-        titulo={`¿Eliminar a ${clienteAEliminar?.nombre || ''} ${clienteAEliminar?.apellido || ''}?`}
-        mensaje="Esta acción borrará permanentemente la información del cliente. Solo se procesará si no posee préstamos activos."
-      />
+      {esAdmin && (
+        <ConfirmModal
+          isOpen={modalConfirmOpen}
+          onClose={() => {
+            setModalConfirmOpen(false);
+            setClienteAEliminar(null);
+          }}
+          onConfirm={handleConfirmarEliminacion}
+          loading={deleting}
+          titulo={`¿Eliminar a ${clienteAEliminar?.nombre || ''} ${clienteAEliminar?.apellido || ''}?`}
+          mensaje="Esta acción borrará permanentemente la información del cliente. Solo se procesará si no posee préstamos activos."
+        />
+      )}
 
       <ConfirmModal
         isOpen={!!mensajeAdvertencia}

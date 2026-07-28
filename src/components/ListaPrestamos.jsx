@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import { Search, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Trash2 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 
 const ListaPrestamos = ({ onVerCliente }) => {
+  const { esAdmin } = useAuth();
   const [prestamos, setPrestamos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
@@ -62,7 +64,6 @@ const ListaPrestamos = ({ onVerCliente }) => {
 
   // Filtrado de la lista
   const prestamosFiltrados = prestamos.filter((p) => {
-    // Extraemos el nombre del cliente según la estructura que devuelva el serializer
     const clienteNombre = typeof p.cliente === 'object'
       ? `${p.cliente?.nombre || ''} ${p.cliente?.apellido || ''}`
       : `${p.cliente_detail?.nombre || p.cliente_nombre || ''} ${p.cliente_detail?.apellido || ''}`;
@@ -160,6 +161,7 @@ const ListaPrestamos = ({ onVerCliente }) => {
                   const cuotasPagadas = p.cuotas_pagadas_count ?? p.cuotas?.filter(c => c.esta_pagada).length ?? 0;
                   const totalCuotas = p.cantidad_cuotas || p.cuotas?.length || 0;
                   const porcentajeProgreso = totalCuotas > 0 ? (cuotasPagadas / totalCuotas) * 100 : 0;
+                  const clienteIdTarget = typeof p.cliente === 'object' ? p.cliente?.id : (p.cliente || p.cliente_detail?.id);
 
                   return (
                     <tr key={p.id} className="hover:bg-fin-charcoal-light/40 transition-colors">
@@ -192,26 +194,22 @@ const ListaPrestamos = ({ onVerCliente }) => {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-col gap-1 w-32">
-                            
-                            {/* Cantidad de cuotas pagadas y total */}
                             <span className="font-bold text-gray-300 text-[11px]">
-                            {cuotasPagadas} de {totalCuotas} saldadas
+                              {cuotasPagadas} de {totalCuotas} saldadas
                             </span>
 
-                            {/* Barra de progreso */}
                             <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden my-0.5">
-                            <div 
+                              <div 
                                 className={`h-full transition-all duration-500 ${
-                                porcentajeProgreso === 100 ? 'bg-fin-cyan' : 'bg-fin-violet'
+                                  porcentajeProgreso === 100 ? 'bg-fin-cyan' : 'bg-fin-violet'
                                 }`} 
                                 style={{ width: `${porcentajeProgreso}%` }}
-                            />
+                              />
                             </div>
 
                             <span className="text-[10px] text-fin-cyan font-bold">
-                            {p.monto_cuota ? `$${Number(p.monto_cuota).toLocaleString()} c/u` : '---'}
+                              {p.monto_cuota ? `$${Number(p.monto_cuota).toLocaleString()} c/u` : '---'}
                             </span>
-
                         </div>
                       </td>
                       <td className="p-4">
@@ -220,20 +218,23 @@ const ListaPrestamos = ({ onVerCliente }) => {
                       <td className="p-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
-                            onClick={() => onVerCliente(p.cliente || p.cliente_detail?.id)}
+                            onClick={() => onVerCliente(clienteIdTarget)}
                             className="p-2 bg-fin-dark-bg hover:bg-fin-violet/20 border border-gray-700 hover:border-fin-violet rounded-xl text-fin-violet transition-all"
                             title="Ver Perfil del Cliente"
                           >
                             <Eye size={16} />
                           </button>
 
-                          <button
-                            onClick={() => handleSolicitarEliminacion(p.id)}
-                            className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all"
-                            title="Eliminar / Cancelar Préstamo"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {/* BOTÓN ELIMINAR (SOLO PARA ADMINISTRADORES) */}
+                          {esAdmin && (
+                            <button
+                              onClick={() => handleSolicitarEliminacion(p.id)}
+                              className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all"
+                              title="Eliminar / Cancelar Préstamo"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -245,18 +246,20 @@ const ListaPrestamos = ({ onVerCliente }) => {
         )}
       </div>
 
-      {/* ⚡ MODAL DE CONFIRMACIÓN CUSTOM */}
-      <ConfirmModal
-        isOpen={modalConfirmOpen}
-        onClose={() => {
-          setModalConfirmOpen(false);
-          setPrestamoAEliminar(null);
-        }}
-        onConfirm={handleConfirmarEliminacion}
-        loading={deleting}
-        titulo={`¿Eliminar Préstamo #${prestamoAEliminar}?`}
-        mensaje="Esta acción eliminará el contrato, sus cuotas asociadas y revertirá los asientos contables en caja."
-      />
+      {/* MODAL DE CONFIRMACIÓN (Solo operable si es Admin) */}
+      {esAdmin && (
+        <ConfirmModal
+          isOpen={modalConfirmOpen}
+          onClose={() => {
+            setModalConfirmOpen(false);
+            setPrestamoAEliminar(null);
+          }}
+          onConfirm={handleConfirmarEliminacion}
+          loading={deleting}
+          titulo={`¿Eliminar Préstamo #${prestamoAEliminar}?`}
+          mensaje="Esta acción eliminará el contrato, sus cuotas asociadas y revertirá los asientos contables en caja."
+        />
+      )}
 
     </div>
   );

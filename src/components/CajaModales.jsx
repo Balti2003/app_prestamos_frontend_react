@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { Play, FolderLock, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 /* ==========================================
    1. MODAL DE APERTURA DE CAJA
    ========================================== */
 export function AperturaCajaModal({ isOpen, onClose, saldoSugerido, onAperturaExitosa }) {
+  const { esAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  if (!isOpen) return null;
+  // Si no está abierto o el usuario no es Administrador, no renderiza nada
+  if (!isOpen || !esAdmin) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(false);
     const saldo = e.target.saldo_apertura.value;
     const token = localStorage.getItem('token');
     
@@ -99,11 +101,13 @@ export function AperturaCajaModal({ isOpen, onClose, saldoSugerido, onAperturaEx
    2. MODAL DE ARQUEO Y CIERRE DE CAJA
    ========================================== */
 export function ArqueoCierreModal({ isOpen, datosCaja, onClose, onCierreExitoso }) {
+  const { esAdmin } = useAuth(); // 2. Verificación de rol
   const [saldoReal, setSaldoReal] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (!isOpen) return null;
+  // Bloqueo de seguridad si no está abierto o no es Administrador
+  if (!isOpen || !esAdmin) return null;
 
   const saldoSugerido = datosCaja?.saldo_estimado || 0;
   const diferencia = saldoReal !== '' ? parseFloat(saldoReal) - saldoSugerido : 0;

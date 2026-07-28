@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Shield, KeyRound, Save, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function MiPerfilUsuario({ onVolverALaHome }) {
+  const { user, esAdmin } = useAuth();
+  
   // Estados para el formulario de contraseña
   const [passwordActual, setPasswordActual] = useState('');
   const [passwordNueva, setPasswordNueva] = useState('');
@@ -11,11 +14,19 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
   const [status, setStatus] = useState({ type: null, message: '' });
   const [loading, setLoading] = useState(false);
 
+  // Helper para generar iniciales
+  const obtenerIniciales = () => {
+    if (!user) return 'US';
+    if (user.first_name && user.last_name) {
+      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+    }
+    return user.username ? user.username.slice(0, 2).toUpperCase() : 'US';
+  };
+
   const handleCambiarPassword = (e) => {
     e.preventDefault();
     setStatus({ type: null, message: '' });
 
-    // Validaciones rápidas del frontend
     if (passwordNueva !== passwordConfirmar) {
       setStatus({ type: 'error', message: 'La nueva contraseña y la confirmación no coinciden.' });
       return;
@@ -28,7 +39,6 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
     setLoading(true);
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-    // Petición al backend para actualizar credenciales
     fetch('http://localhost:8000/api/usuario/cambiar-password/', {
       method: 'POST',
       headers: {
@@ -73,16 +83,20 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
         {/* TARJETA DE INFORMACIÓN DEL OPERADOR */}
         <div className="bg-fin-charcoal border border-gray-800 rounded-3xl p-6 flex flex-col items-center text-center space-y-4 h-fit">
           <div className="w-20 h-20 rounded-2xl bg-fin-violet/10 border border-fin-violet/30 flex items-center justify-center text-fin-violet font-black text-3xl shadow-neon-violet/5">
-            BL
+            {obtenerIniciales()}
           </div>
           <div>
-            <h3 className="text-xl font-black text-white italic uppercase tracking-tight">Baltasar</h3>
+            <h3 className="text-xl font-black text-white italic uppercase tracking-tight">
+              {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.username || 'Usuario'}
+            </h3>
             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1 flex items-center justify-center gap-1.5">
-              <Shield size={12} className="text-fin-cyan" /> Administrador del Sistema
+              <Shield size={12} className={esAdmin ? "text-fin-cyan" : "text-amber-400"} /> 
+              {esAdmin ? 'Administrador del Sistema' : 'Operador de Campo'}
             </p>
           </div>
           <div className="w-full border-t border-gray-800/60 pt-4 text-left space-y-2 text-xs text-gray-400">
-            <p>• <span className="font-semibold text-gray-500">Entidad:</span> PrestaYa S.A.</p>
+            <p>• <span className="font-semibold text-gray-500">Usuario:</span> {user?.username}</p>
+            <p>• <span className="font-semibold text-gray-500">Email:</span> {user?.email || 'Sin correo registrado'}</p>
             <p>• <span className="font-semibold text-gray-500">Estado de cuenta:</span> Activo / Conectado</p>
           </div>
         </div>

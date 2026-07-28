@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import Brand from './Brand';
 import ListaClientes from './ListaClientes';
 import NuevoClienteModal from './NuevoClienteModal';
@@ -18,6 +19,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard = ({ onLogout }) => {
+  const { user, esAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('resumen');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,7 @@ const Dashboard = ({ onLogout }) => {
         if (data.caja_abierta) {
           setCajaInfo({ cargando: false, abierta: true, datos: data });
         } else {
-          setCajaInfo({ cargando: false, abierta: false, datos: data }); // Trae el saldo sugerido
+          setCajaInfo({ cargando: false, abierta: false, datos: data });
         }
       }
     } catch (error) {
@@ -104,9 +106,9 @@ const Dashboard = ({ onLogout }) => {
   // eslint-disable-next-line no-unused-vars
   const abrirModalPagoConCliente = (cliente) => {
     if (!cajaInfo.abierta) {
-    alert("No puedes registrar pagos. Debes abrir la caja del día primero.");
-    return;
-  }
+      alert("No puedes registrar pagos. Debes abrir la caja del día primero.");
+      return;
+    }
     setActiveTab('resumen');
     setIsPagoModalOpen(true);
   };
@@ -126,18 +128,15 @@ const Dashboard = ({ onLogout }) => {
         throw new Error('No se pudo descargar el comprobante');
       }
 
-      // Convertimos la respuesta a un archivo binario (Blob)
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       
-      // Creamos un link invisible temporal para disparar la descarga
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `comprobante_cuota_${cuotaId}.pdf`);
       document.body.appendChild(link);
       link.click();
       
-      // Limpieza
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
@@ -180,6 +179,15 @@ const Dashboard = ({ onLogout }) => {
 
   const { metricas_financieras, estado_cartera, operativo_hoy } = data;
 
+  // Calculamos las iniciales del usuario para el avatar
+  const obtenerIniciales = () => {
+    if (!user) return 'US';
+    if (user.first_name && user.last_name) {
+      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+    }
+    return user.username ? user.username.slice(0, 2).toUpperCase() : 'US';
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#07080a] text-white overflow-x-hidden flex flex-col">
       <NuevoClienteModal 
@@ -192,19 +200,13 @@ const Dashboard = ({ onLogout }) => {
         isOpen={isPrestamoModalOpen} 
         onClose={() => setIsPrestamoModalOpen(false)} 
         onRefresh={fetchDashboardData} 
+        onDescargarComprobante={descargarComprobanteDesembolsoSeguro}
       />
 
       <RegistrarPagoModal 
         isOpen={isPagoModalOpen} 
         onClose={() => setIsPagoModalOpen(false)} 
         onRefresh={fetchDashboardData} 
-      />
-
-      <NuevoPrestamoModal 
-        isOpen={isPrestamoModalOpen} 
-        onClose={() => setIsPrestamoModalOpen(false)} 
-        onRefresh={fetchDashboardData} 
-        onDescargarComprobante={descargarComprobanteDesembolsoSeguro}
       />
 
       {/* HEADER RESPONSIVO */}
@@ -222,7 +224,6 @@ const Dashboard = ({ onLogout }) => {
                     setActiveTab('resumen');
                   }} 
                 />
-                <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em] -mt-4 ml-12 italic"></span>
             </div>
 
             {/* NAVEGACIÓN DE SECCIONES */}
@@ -258,8 +259,12 @@ const Dashboard = ({ onLogout }) => {
         <div className="flex items-center justify-between sm:justify-end w-full lg:w-auto gap-4 sm:gap-6 border-t border-gray-800/40 lg:border-t-0 pt-3 lg:pt-0">
             
             <div className="hidden sm:flex flex-col items-end">
-                <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Sesión Activa</span>
-                <span className="text-sm font-medium text-white">Hola, Baltasar</span>
+                <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">
+                  {esAdmin ? 'Administrador' : 'Operador'}
+                </span>
+                <span className="text-sm font-medium text-white">
+                  Hola, {user?.first_name || user?.username || 'Usuario'}
+                </span>
             </div>
 
             <div className="flex items-center gap-4 ml-auto sm:ml-0">
@@ -274,7 +279,7 @@ const Dashboard = ({ onLogout }) => {
                     </button>
                 </div>
 
-                {/* Botón de Perfil BL de la derecha del todo */}
+                {/* Avatar dinámico con las iniciales del usuario */}
                 <div className="relative group">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-fin-violet to-fin-cyan flex items-center justify-center font-black text-white shadow-neon-cyan active:scale-95 transition-transform cursor-pointer">
                         <button 
@@ -288,7 +293,7 @@ const Dashboard = ({ onLogout }) => {
                               : 'border-gray-700 hover:border-gray-500 shadow-lg shadow-cyan-500/5'
                           }`}
                         >
-                          BL
+                          {obtenerIniciales()}
                         </button>
                     </div>
                     <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 border-2 border-fin-dark-bg rounded-full"></div>
@@ -306,7 +311,7 @@ const Dashboard = ({ onLogout }) => {
             {cajaInfo.cargando ? (
               <div className="mb-6 p-4 bg-fin-charcoal/40 border border-gray-800 rounded-2xl animate-pulse flex h-16 w-full" />
             ) : !cajaInfo.abierta ? (
-              /* CAJA CERRADA: Advertencia de bloqueo */
+              /* CAJA CERRADA */
               <div className="mb-6 p-4 sm:p-5 bg-red-950/20 border border-red-900/40 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-red-500/10 rounded-xl text-red-500 border border-red-500/20">
@@ -314,18 +319,30 @@ const Dashboard = ({ onLogout }) => {
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-white uppercase tracking-tight">La Caja del Día está Cerrada</h4>
-                    <p className="text-xs text-gray-400 mt-0.5">Debes abrir la caja diaria con un saldo base para poder registrar cobros o préstamos.</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {esAdmin 
+                        ? "Debes abrir la caja diaria con un saldo base para poder registrar cobros o préstamos."
+                        : "Un administrador debe realizar la apertura de la caja del día para habilitar las operaciones."}
+                    </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setIsAperturaModalOpen(true)}
-                  className="w-full sm:w-auto px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-red-500/10 uppercase tracking-widest flex items-center justify-center gap-2"
-                >
-                  <Play size={14} /> Abrir Caja de Hoy
-                </button>
+
+                {/* SOLO EL ADMIN PUEDE ABRIR LA CAJA */}
+                {esAdmin ? (
+                  <button
+                    onClick={() => setIsAperturaModalOpen(true)}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-red-500/10 uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <Play size={14} /> Abrir Caja de Hoy
+                  </button>
+                ) : (
+                  <span className="text-xs text-red-400 font-bold bg-red-950/40 px-3 py-1.5 rounded-lg border border-red-900/50">
+                    Apertura Pendiente por Admin
+                  </span>
+                )}
               </div>
             ) : (
-              /* CAJA ABIERTA: Todo en Orden */
+              /* CAJA ABIERTA */
               <div className="mb-6 p-4 sm:p-5 bg-green-950/10 border border-green-900/20 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-green-500/10 rounded-xl text-green-400 border border-green-500/10">
@@ -336,16 +353,20 @@ const Dashboard = ({ onLogout }) => {
                       Caja Diaria Activa <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
                     </h4>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Abierta por <span className="text-green-400 font-semibold">{cajaInfo.datos?.operador_apertura}</span> con un saldo inicial de <span className="font-semibold text-white">${cajaInfo.datos?.saldo_apertura.toLocaleString()}</span>.
+                      Abierta por <span className="text-green-400 font-semibold">{cajaInfo.datos?.operador_apertura}</span> con un saldo inicial de <span className="font-semibold text-white">${cajaInfo.datos?.saldo_apertura?.toLocaleString()}</span>.
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setIsCierreModalOpen(true)}
-                  className="w-full sm:w-auto px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white font-black text-xs rounded-xl border border-gray-700 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
-                >
-                  <FolderLock size={14} /> Realizar Arqueo y Cerrar
-                </button>
+
+                {/* SOLO EL ADMIN PUEDE REALIZAR EL CIERRE Y ARQUEO */}
+                {esAdmin && (
+                  <button
+                    onClick={() => setIsCierreModalOpen(true)}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white font-black text-xs rounded-xl border border-gray-700 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <FolderLock size={14} /> Realizar Arqueo y Cerrar
+                  </button>
+                )}
               </div>
             )}
 
@@ -388,13 +409,26 @@ const Dashboard = ({ onLogout }) => {
                 color="cyan"
                 subtitle="Dinero líquido listo para prestar"
               />
-              <StatCard 
-                title="GANANCIA REAL" 
-                value={`$${metricas_financieras?.rentabilidad_acumulada?.toLocaleString() ?? 0}`}
-                icon={<TrendingUp />}
-                color="violet"
-                subtitle="Suma de intereses y mora cobrados"
-              />
+
+              {/* Si es Admin muestra Ganancia Real, si es Operador muestra Cobros Esperados Hoy */}
+              {esAdmin ? (
+                <StatCard 
+                  title="GANANCIA REAL" 
+                  value={`$${metricas_financieras?.rentabilidad_acumulada?.toLocaleString() ?? 0}`}
+                  icon={<TrendingUp />}
+                  color="violet"
+                  subtitle="Suma de intereses y mora cobrados"
+                />
+              ) : (
+                <StatCard 
+                  title="COBROS HOY" 
+                  value={`$${operativo_hoy?.cobros_pendientes_hoy?.toLocaleString() ?? 0}`}
+                  icon={<ReceiptText />}
+                  color="violet"
+                  subtitle="Cobros agendados para la fecha"
+                />
+              )}
+
               <StatCard 
                 title="CAPITAL PRESTADO" 
                 value={`$${metricas_financieras?.capital_en_calle?.toLocaleString() ?? 0}`}
@@ -467,7 +501,7 @@ const Dashboard = ({ onLogout }) => {
                     </div>
                   </div>
 
-                  {/* NUEVA SECCIÓN: Préstamos Activos & Promedio Otorgado */}
+                  {/* Préstamos Activos & Promedio Otorgado */}
                   <div className="grid grid-cols-2 gap-3">
                     
                     {/* Préstamos Activos */}
@@ -566,7 +600,7 @@ const Dashboard = ({ onLogout }) => {
         saldoSugerido={cajaInfo.datos?.saldo_sugerido}
         onAperturaExitosa={() => {
           setIsAperturaModalOpen(false);
-          chequearEstadoCaja(); // Refresca el banner principal
+          chequearEstadoCaja();
         }}
       />
 
@@ -576,7 +610,7 @@ const Dashboard = ({ onLogout }) => {
         onClose={() => setIsCierreModalOpen(false)}
         onCierreExitoso={() => {
           setIsCierreModalOpen(false);
-          chequearEstadoCaja(); // Vuelve a consultar el estado y actualiza a modo cerrado
+          chequearEstadoCaja();
         }}
       />
     </div>

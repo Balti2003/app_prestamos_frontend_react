@@ -14,12 +14,14 @@ import {
   Trash2
 } from 'lucide-react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import SeccionGarantias from './SeccionGarantias';
 import TarjetaPrestamoVigente from './TarjetaPrestamoVigente';
 import EditarClienteModal from './EditarClienteModal';
 import ConfirmModal from './ConfirmModal';
 
 export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarRecibo }) {
+  const { esAdmin } = useAuth();
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('activos');
@@ -60,14 +62,12 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
       });
   }, [clienteId]);
 
-  // Buscamos los datos dinámicamente al montar el componente
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetchClientePerfil();
   }, [fetchClientePerfil]);
 
-  // Función local para descargar el Comprobante de Desembolso del Préstamo
   const handleDescargarDesembolso = async (prestamoId) => {
     if (!prestamoId) return;
     setDescargandoDesembolsoId(prestamoId);
@@ -100,14 +100,12 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
     }
   };
 
-  // Función auxiliar para elegir el color del scoring de puntualidad
   const getPuntualidadColor = (porcentaje) => {
     if (porcentaje >= 85) return 'text-green-400 border-green-500/20 bg-green-500/5';
     if (porcentaje >= 65) return 'text-amber-400 border-amber-500/20 bg-amber-500/5';
     return 'text-red-400 border-red-500/20 bg-red-500/5';
   };
 
-  // Función auxiliar para renderizar la etiqueta del método de pago
   const renderMetodoPagoBadge = (metodo) => {
     switch (metodo) {
       case 'transferencia':
@@ -132,18 +130,15 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
     }
   };
 
-  // Confirmación desde el Modal
   const handleConfirmarEliminacion = async () => {
+    if (!esAdmin) return;
     try {
       setDeleting(true);
       await api.delete(`/clientes/${cliente.id}/`);
       setModalConfirmOpen(false);
-      onVolver(); // Regresa a la lista general tras borrar
+      onVolver();
     } catch (err) {
-      // Leemos el mensaje enviado por Django desde el backend
       const errorServidor = err.response?.data?.error || "No se puede eliminar este cliente porque tiene préstamos u operaciones registradas.";
-      
-      // Cerramos el modal de confirmación y activamos la advertencia
       setModalConfirmOpen(false);
       setMensajeAdvertencia(errorServidor);
     } finally {
@@ -172,7 +167,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
   return (
     <div className="space-y-6">
       
-      {/* Botón de Retorno para volver a la tabla general */}
+      {/* Botón de Retorno */}
       <button 
         onClick={onVolver} 
         className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white uppercase tracking-widest transition-colors mb-2 focus:outline-none"
@@ -180,10 +175,9 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         <ArrowLeft size={14} /> Volver a la lista de clientes
       </button>
 
-      {/* --- ENCABEZADO DE EXPEDIENTE CON DATOS DEL CLIENTE --- */}
+      {/* --- ENCABEZADO DE EXPEDIENTE --- */}
       <div className="bg-fin-charcoal border border-gray-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          {/* Avatar con iniciales */}
           <div className="w-14 h-14 rounded-2xl bg-fin-violet/10 border border-fin-violet/30 flex items-center justify-center text-fin-violet font-black text-xl uppercase">
             {cliente.nombre?.[0]}{cliente.apellido?.[0]}
           </div>
@@ -219,21 +213,24 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             <p className="text-gray-200 font-medium mt-0.5">{cliente.direccion || 'Sin dirección'}</p>
           </div>
 
-          {/* Botones Editar / Eliminar */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setModalEditarOpen(true)}
-              className="p-2.5 bg-gray-800 text-gray-300 hover:text-white border border-gray-700 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
-            >
-              <Edit size={14} /> Editar
-            </button>
-            <button
-              onClick={() => setModalConfirmOpen(true)}
-              className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
-            >
-              <Trash2 size={14} /> Eliminar
-            </button>
-          </div>
+          {/* Botones de Acción (SOLO ADMINISTRADOR) */}
+          {esAdmin && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setModalEditarOpen(true)}
+                className="p-2.5 bg-gray-800 text-gray-300 hover:text-white border border-gray-700 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+              >
+                <Edit size={14} /> Editar
+              </button>
+              
+              <button
+                onClick={() => setModalConfirmOpen(true)}
+                className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+              >
+                <Trash2 size={14} /> Eliminar
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -257,22 +254,42 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </div>
         </div>
 
-        <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Rentabilidad Total</p>
-              <h3 className="text-3xl font-black mt-2 text-green-400">
-                ${metricas_comportamiento?.ganancia_generada.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-              </h3>
+        {/* ADMIN VE RENTABILIDAD, OPERADOR VE PAGOS REALIZADOS */}
+        {esAdmin ? (
+          <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Rentabilidad Total</p>
+                <h3 className="text-3xl font-black mt-2 text-green-400">
+                  ${metricas_comportamiento?.ganancia_generada?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                </h3>
+              </div>
+              <div className="p-2 bg-gray-800 rounded-xl border border-gray-700 text-green-400">
+                <TrendingUp size={20} />
+              </div>
             </div>
-            <div className="p-2 bg-gray-800 rounded-xl border border-gray-700 text-green-400">
-              <TrendingUp size={20} />
-            </div>
+            <p className="text-xs text-gray-400 mt-4">
+              Total generado por intereses y recargos de mora cobrados.
+            </p>
           </div>
-          <p className="text-xs text-gray-400 mt-4">
-            Total generado por intereses y recargos de mora cobrados.
-          </p>
-        </div>
+        ) : (
+          <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Cuotas Saldadas</p>
+                <h3 className="text-3xl font-black mt-2 text-fin-cyan">
+                  {metricas_comportamiento?.cuotas_pagadas_total ?? 0}
+                </h3>
+              </div>
+              <div className="p-2 bg-gray-800 rounded-xl border border-gray-700 text-fin-cyan">
+                <ReceiptText size={20} />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-4">
+              Número total de cuotas abonadas exitosamente por el cliente.
+            </p>
+          </div>
+        )}
 
         <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
           <div className="flex justify-between items-start">
@@ -406,23 +423,27 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         )}
       </div>
 
-      {/* MODAL DE EDICIÓN DEL CLIENTE */}
-      <EditarClienteModal 
-        isOpen={modalEditarOpen}
-        onClose={() => setModalEditarOpen(false)}
-        cliente={cliente}
-        onRefresh={fetchClientePerfil}
-      />
+      {/* MODAL DE EDICIÓN DEL CLIENTE (SOLO ADMINISTRADOR) */}
+      {esAdmin && (
+        <EditarClienteModal 
+          isOpen={modalEditarOpen}
+          onClose={() => setModalEditarOpen(false)}
+          cliente={cliente}
+          onRefresh={fetchClientePerfil}
+        />
+      )}
 
-      {/* MODAL DE CONFIRMACIÓN DE BORRADO */}
-      <ConfirmModal
-        isOpen={modalConfirmOpen}
-        onClose={() => setModalConfirmOpen(false)}
-        onConfirm={handleConfirmarEliminacion}
-        loading={deleting}
-        titulo={`¿Eliminar a ${cliente?.nombre || ''} ${cliente?.apellido || ''}?`}
-        mensaje="Esta acción borrará permanentemente la información del cliente. Solo se procesará si no posee préstamos activos."
-      />
+      {/* MODAL DE CONFIRMACIÓN DE BORRADO (SOLO ADMINISTRADOR) */}
+      {esAdmin && (
+        <ConfirmModal
+          isOpen={modalConfirmOpen}
+          onClose={() => setModalConfirmOpen(false)}
+          onConfirm={handleConfirmarEliminacion}
+          loading={deleting}
+          titulo={`¿Eliminar a ${cliente?.nombre || ''} ${cliente?.apellido || ''}?`}
+          mensaje="Esta acción borrará permanentemente la información del cliente. Solo se procesará si no posee préstamos activos."
+        />
+      )}
 
       <ConfirmModal
         isOpen={!!mensajeAdvertencia}

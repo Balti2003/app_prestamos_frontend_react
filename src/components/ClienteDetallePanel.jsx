@@ -122,8 +122,8 @@ const ClienteDetallePanel = ({ clienteId, onClose, onOpenPayment }) => {
           <div className="p-6 bg-fin-charcoal-light border-t border-gray-800">
             <button 
                 onClick={() => {
-                onOpenPayment(data); // Ejecutamos la función que vino desde el Dashboard
-                onClose();           // Cerramos el panel lateral
+                  onOpenPayment(data);
+                  onClose();
                 }}
                 className="w-full bg-white text-black py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-fin-cyan hover:text-white transition-all group"
             >

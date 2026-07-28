@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import Brand from './Brand';
 import { User, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 
 const Login = ({ onLogin }) => {
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,10 +16,25 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     setError('');
     try {
+      // 1. Obtenemos los tokens JWT
       const response = await api.post('/token/', { username, password });
-      localStorage.setItem('token', response.data.access);
-      onLogin();
-    } catch {
+      const token = response.data.access;
+      
+      // Guardamos temporalmente el token para la siguiente consulta
+      localStorage.setItem('token', token);
+
+      // 2. Consultamos quién es el usuario logueado (incluye el campo es_admin)
+      const userRes = await api.get('/me/', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // 3. Actualizamos el AuthContext y guardamos la sesión
+      login(userRes.data, token);
+
+      // 4. Notificamos al componente padre
+      if (onLogin) onLogin();
+    } catch (err) {
+      console.error("Error al iniciar sesión:", err);
       setError('Las credenciales ingresadas son incorrectas');
     } finally {
       setLoading(false);
@@ -27,25 +44,22 @@ const Login = ({ onLogin }) => {
   const bgImageUrl = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop";
 
   return (
-    // 1. EL CONTENEDOR GLOBAL: Vuelve a tener su color sólido de siempre (bg-fin-dark-bg)
     <div className="flex min-h-screen bg-fin-dark-bg text-white w-full relative overflow-hidden">
       
-      {/* 2. FONDO EXCLUSIVO PARA MOBILE: Solo se renderiza en celulares y tablets (lg:hidden) */}
+      {/* FONDO EXCLUSIVO PARA MOBILE */}
       <div 
         className="absolute inset-0 bg-cover bg-center lg:hidden z-0"
         style={{ backgroundImage: `url('${bgImageUrl}')` }}
       />
       
-      {/* OVERLAY OSCURO MÓVIL: Apaga el fondo de celular un 85% para legibilidad */}
+      {/* OVERLAY OSCURO MÓVIL */}
       <div className="absolute inset-0 bg-fin-dark-bg/85 z-0 lg:hidden pointer-events-none"></div>
 
-
-      {/* ================= COLUMNA IZQUIERDA: BIENVENIDA (SÓLO PC - INTACTA) ================= */}
+      {/* ================= COLUMNA IZQUIERDA: BIENVENIDA (SÓLO PC) ================= */}
       <div 
         className="hidden lg:flex lg:w-1/2 p-16 flex-col justify-between relative bg-cover bg-center z-10 border-r border-gray-800/40"
         style={{ backgroundImage: `url('${bgImageUrl}')` }}
       >
-        {/* Overlay oscuro para legibilidad del texto en PC */}
         <div className="absolute inset-0 bg-fin-dark-bg/80 backdrop-blur-sm"></div>
 
         <div className="relative z-10">
@@ -79,15 +93,11 @@ const Login = ({ onLogin }) => {
         </div>
       </div>
 
-
       {/* ================= COLUMNA DERECHA: FORMULARIO (PC & MOBILE) ================= */}
-      {/* bg-transparent en mobile para dejar ver la Tierra, lg:bg-fin-charcoal sólido en PC */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 bg-transparent lg:bg-fin-charcoal z-10">
         
-        {/* TARJETA DE LOGIN: Agregamos blur solo en mobile */}
         <div className="w-full max-w-md bg-fin-charcoal-light/95 lg:bg-fin-charcoal-light p-8 sm:p-10 rounded-3xl shadow-fin-card border border-gray-800 backdrop-blur-md lg:backdrop-blur-none">
           <div className="mb-8 text-center flex flex-col items-center">
-            {/* Logo secundario para móvil */}
             <div className="lg:hidden mb-6"><Brand /></div>
             
             <h3 className="text-3xl font-extrabold tracking-tight text-white mb-2">LOGIN</h3>

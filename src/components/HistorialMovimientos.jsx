@@ -10,12 +10,15 @@ import {
   PlusCircle,
   Wallet,
   ArrowRightLeft,
-  CreditCard
+  CreditCard,
+  ShieldAlert
 } from 'lucide-react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import NuevoMovimientoModal from './NuevoMovimientoModal';
 
 const HistorialMovimientos = () => {
+  const { esAdmin } = useAuth();
   const [movimientos, setMovimientos] = useState([]);
   const [filteredMovimientos, setFilteredMovimientos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,11 +29,18 @@ const HistorialMovimientos = () => {
   const [fechaHasta, setFechaHasta] = useState('');
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
-    fetchMovimientos();
-  }, []);
+    if (esAdmin) {
+      // eslint-disable-next-line react-hooks/immutability
+      fetchMovimientos();
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(false);
+    }
+  }, [esAdmin]);
 
   useEffect(() => {
+    if (!esAdmin) return;
+
     let resultado = movimientos;
     if (fechaDesde) {
       resultado = resultado.filter(m => new Date(m.fecha) >= new Date(fechaDesde));
@@ -42,7 +52,7 @@ const HistorialMovimientos = () => {
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilteredMovimientos(resultado);
-  }, [fechaDesde, fechaHasta, movimientos]);
+  }, [fechaDesde, fechaHasta, movimientos, esAdmin]);
 
   const fetchMovimientos = async () => {
     try {
@@ -102,7 +112,7 @@ const HistorialMovimientos = () => {
     }
   };
 
-  // Función auxiliar para renderizar el badge de forma de pago
+  // Auxiliar para badge de forma de pago
   const renderMetodoPagoBadge = (metodo) => {
     const metodoLower = (metodo || 'efectivo').toLowerCase();
     switch (metodoLower) {
@@ -127,6 +137,23 @@ const HistorialMovimientos = () => {
         );
     }
   };
+
+  // BARRERA DE SEGURIDAD PARA OPERADORES (Opción A)
+  if (!esAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 my-6 bg-fin-charcoal border border-gray-800 rounded-3xl text-center space-y-4 animate-in fade-in duration-300">
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl shadow-lg">
+          <ShieldAlert size={36} />
+        </div>
+        <div>
+          <h3 className="text-xl font-black text-white uppercase italic tracking-tight">Acceso Reservado a Administración</h3>
+          <p className="text-gray-400 text-xs mt-1 max-w-md leading-relaxed">
+            El libro diario de caja y los movimientos globales de fondos están restringidos únicamente a usuarios con perfil Administrador.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return <div className="p-10 text-center text-fin-cyan animate-pulse font-black uppercase italic">Sincronizando caja...</div>;
 
@@ -177,9 +204,7 @@ const HistorialMovimientos = () => {
 
       {/* Tarjeta de la Tabla */}
       <div className="bg-fin-charcoal rounded-3xl border border-gray-800 overflow-hidden w-full">
-        
         <div className="w-full overflow-x-auto block">      
-          
           <table className="text-left border-collapse min-w-[950px] lg:w-full table-fixed lg:table-auto">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-900/30 text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -193,11 +218,8 @@ const HistorialMovimientos = () => {
             </thead>
             <tbody className="divide-y divide-gray-800/60 text-sm text-gray-200">
               {filteredMovimientos.length > 0 ? filteredMovimientos.map((m) => {
-                
-                // Normalización de tipo para comparación segura (evita fallos por mayúsculas 'EGRESO')
                 const tipoLower = (m.tipo || '').toLowerCase();
 
-                // Extracción segura de prestamo_id (campo directo o fallback desde el concepto)
                 let prestamoIdExtraido = m.prestamo_id || m.prestamo;
                 if (!prestamoIdExtraido && m.concepto) {
                   const match = m.concepto.match(/(?:#|PRÉSTAMO\s*#?|PRESTAMO\s*#?)\s*(\d+)/i);
@@ -209,7 +231,6 @@ const HistorialMovimientos = () => {
 
                 return (
                   <tr key={m.id} className="hover:bg-white/[0.02] transition-colors group">
-                    
                     <td className="p-5 whitespace-nowrap">
                       <div className="flex items-center gap-2 text-gray-400">
                         <Calendar size={14} className="text-gray-600" />
@@ -234,7 +255,6 @@ const HistorialMovimientos = () => {
                       </span>
                     </td>
 
-                    {/* ⚡ COLUMNA NUEVA: FORMA DE PAGO */}
                     <td className="p-5 text-center whitespace-nowrap">
                       {renderMetodoPagoBadge(m.metodo_pago)}
                     </td>
@@ -245,10 +265,8 @@ const HistorialMovimientos = () => {
                       </span>
                     </td>
                     
-                    {/* Botón dinámico según tipo de transacción */}
                     <td className="p-5 text-center whitespace-nowrap">
                       {tipoLower === 'ingreso' && m.cuota_id ? (
-                        /* Recibo de Cobro (Cyan) */
                         <button 
                           onClick={() => handleDescargarRecibo(m.cuota_id)}
                           disabled={isDescargandoCuota}
@@ -262,7 +280,6 @@ const HistorialMovimientos = () => {
                           {isDescargandoCuota ? <Download size={16} /> : <ReceiptText size={16} />}
                         </button>
                       ) : tipoLower === 'egreso' && prestamoIdExtraido ? (
-                        /* Comprobante de Desembolso (Violeta) */
                         <button 
                           onClick={() => handleDescargarDesembolso(prestamoIdExtraido)}
                           disabled={isDescargandoPrestamo}
@@ -293,7 +310,6 @@ const HistorialMovimientos = () => {
         </div>
       </div>
 
-      {/* MODAL DE REGISTRO MANUAL DE MOVIMIENTO */}
       <NuevoMovimientoModal 
         isOpen={modalMovimientoOpen}
         onClose={() => setModalMovimientoOpen(false)}

@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { X, DollarSign, Tag, ArrowUpCircle, ArrowDownCircle, Save } from 'lucide-react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 
 const NuevoMovimientoModal = ({ isOpen, onClose, onRefresh }) => {
+  const { esAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    tipo: 'egreso', // 'ingreso' o 'egreso'
+    tipo: 'egreso',
     monto: '',
     concepto: ''
   });
 
-  if (!isOpen) return null;
+  // 3. Bloqueo de seguridad: si no está abierto o el usuario no es Administrador, no renderiza nada
+  if (!isOpen || !esAdmin) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
