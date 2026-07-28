@@ -9,16 +9,25 @@ import {
   ArrowLeft,
   Wallet,
   ArrowRightLeft,
-  CreditCard
+  CreditCard,
+  Edit,
+  Trash2
 } from 'lucide-react';
+import api from '../api';
 import SeccionGarantias from './SeccionGarantias';
 import TarjetaPrestamoVigente from './TarjetaPrestamoVigente';
+import EditarClienteModal from './EditarClienteModal';
+import ConfirmModal from './ConfirmModal';
 
 export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarRecibo }) {
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('activos');
   const [descargandoDesembolsoId, setDescargandoDesembolsoId] = useState(null);
+  const [modalEditarOpen, setModalEditarOpen] = useState(false);
+  const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [mensajeAdvertencia, setMensajeAdvertencia] = useState(null);
 
   const fetchClientePerfil = useCallback(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -86,7 +95,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Error al descargar comprobante de desembolso:", err);
-      alert("Error al intentar descargar el comprobante de desembolso.");
     } finally {
       setDescargandoDesembolsoId(null);
     }
@@ -124,7 +132,25 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
     }
   };
 
-  {/* --- VALIDACIONES DE CARGA ANTES DE LA DESESTRUCTURACIÓN --- */}
+  // Confirmación desde el Modal
+  const handleConfirmarEliminacion = async () => {
+    try {
+      setDeleting(true);
+      await api.delete(`/clientes/${cliente.id}/`);
+      setModalConfirmOpen(false);
+      onVolver(); // Regresa a la lista general tras borrar
+    } catch (err) {
+      // Leemos el mensaje enviado por Django desde el backend
+      const errorServidor = err.response?.data?.error || "No se puede eliminar este cliente porque tiene préstamos u operaciones registradas.";
+      
+      // Cerramos el modal de confirmación y activamos la advertencia
+      setModalConfirmOpen(false);
+      setMensajeAdvertencia(errorServidor);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center p-20 text-gray-500 text-xs font-black uppercase tracking-widest animate-pulse">
@@ -182,8 +208,8 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </div>
         </div>
 
-        {/* Bloques de contacto rápidos */}
-        <div className="flex flex-wrap gap-4 text-xs border-t md:border-t-0 border-gray-800 pt-4 md:pt-0">
+        {/* Acciones e Info Rápida */}
+        <div className="flex flex-wrap items-center gap-4 text-xs border-t md:border-t-0 border-gray-800 pt-4 md:pt-0">
           <div className="bg-gray-900/40 border border-gray-800/80 px-4 py-2.5 rounded-xl">
             <p className="text-gray-500 font-bold uppercase text-[9px] tracking-widest">Teléfono Celular</p>
             <p className="text-gray-200 font-medium mt-0.5">{cliente.telefono || 'Sin teléfono'}</p>
@@ -192,13 +218,27 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             <p className="text-gray-500 font-bold uppercase text-[9px] tracking-widest">Dirección Registrada</p>
             <p className="text-gray-200 font-medium mt-0.5">{cliente.direccion || 'Sin dirección'}</p>
           </div>
+
+          {/* Botones Editar / Eliminar */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setModalEditarOpen(true)}
+              className="p-2.5 bg-gray-800 text-gray-300 hover:text-white border border-gray-700 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+            >
+              <Edit size={14} /> Editar
+            </button>
+            <button
+              onClick={() => setModalConfirmOpen(true)}
+              className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+            >
+              <Trash2 size={14} /> Eliminar
+            </button>
+          </div>
         </div>
       </div>
 
       {/* 1. SECCIÓN DE TARJETAS: SCORING Y MÉTRICAS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        {/* Tarjeta: Tasa de Puntualidad */}
         <div className={`border rounded-2xl p-5 transition-all ${getPuntualidadColor(metricas_comportamiento?.tasa_puntualidad_porcentaje)}`}>
           <div className="flex justify-between items-start">
             <div>
@@ -217,7 +257,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </div>
         </div>
 
-        {/* Tarjeta: Ganancia Generada */}
         <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
           <div className="flex justify-between items-start">
             <div>
@@ -235,7 +274,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </p>
         </div>
 
-        {/* Tarjeta: Resumen de Créditos */}
         <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
           <div className="flex justify-between items-start">
             <div>
@@ -252,7 +290,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             Incluye préstamos activos, en mora y ya finalizados.
           </p>
         </div>
-
       </div>
 
       {/* --- SECCIÓN DE GARANTÍAS Y DOCUMENTOS --- */}
@@ -288,8 +325,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
 
       {/* 3. CONTENIDO DE LAS PESTAÑAS */}
       <div className="bg-fin-charcoal border border-gray-800 rounded-2xl overflow-hidden">
-        
-        {/* PESTAÑA: PRÉSTAMOS ACTIVOS */}
         {activeTab === 'activos' && (
           <div className="p-6">
             {prestamos_activos?.length === 0 ? (
@@ -311,7 +346,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </div>
         )}
 
-        {/* PESTAÑA: HISTORIAL CRONOLÓGICO DE PAGOS */}
         {activeTab === 'historial' && (
           <div className="overflow-x-auto">
             {historial_pagos?.length === 0 ? (
@@ -327,7 +361,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                     <th className="p-4">Fecha Pago</th>
                     <th className="p-4">Capital Base</th>
                     <th className="p-4">Mora Cobrada</th>
-                    <th className="p-4">Forma de Pago</th> {/* 👈 NUEVA COLUMNA */}
+                    <th className="p-4">Forma de Pago</th>
                     <th className="p-4 text-center">Comprobante</th>
                   </tr>
                 </thead>
@@ -351,12 +385,9 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                           <span className="text-gray-600">—</span>
                         )}
                       </td>
-
-                      {/* ⚡ NUEVA CELDA: FORMA DE PAGO */}
                       <td className="p-4">
                         {renderMetodoPagoBadge(pago.metodo_pago)}
                       </td>
-
                       <td className="p-4 text-center">
                         <button
                           onClick={() => onDescargarRecibo(pago.id)}
@@ -373,8 +404,34 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             )}
           </div>
         )}
-
       </div>
+
+      {/* MODAL DE EDICIÓN DEL CLIENTE */}
+      <EditarClienteModal 
+        isOpen={modalEditarOpen}
+        onClose={() => setModalEditarOpen(false)}
+        cliente={cliente}
+        onRefresh={fetchClientePerfil}
+      />
+
+      {/* MODAL DE CONFIRMACIÓN DE BORRADO */}
+      <ConfirmModal
+        isOpen={modalConfirmOpen}
+        onClose={() => setModalConfirmOpen(false)}
+        onConfirm={handleConfirmarEliminacion}
+        loading={deleting}
+        titulo={`¿Eliminar a ${cliente?.nombre || ''} ${cliente?.apellido || ''}?`}
+        mensaje="Esta acción borrará permanentemente la información del cliente. Solo se procesará si no posee préstamos activos."
+      />
+
+      <ConfirmModal
+        isOpen={!!mensajeAdvertencia}
+        onClose={() => setMensajeAdvertencia(null)}
+        titulo="Acción Bloqueada"
+        mensaje={mensajeAdvertencia}
+        isAlert={true}
+      />
+
     </div>
   );
 }

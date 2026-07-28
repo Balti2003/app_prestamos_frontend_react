@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
-import { Search, Phone, IdCard, ExternalLink, Eye } from 'lucide-react';
+import { Search, Phone, IdCard, ExternalLink, Eye, Edit, Trash2 } from 'lucide-react';
 import ClienteDetallePanel from './ClienteDetallePanel';
+import EditarClienteModal from './EditarClienteModal';
+import ConfirmModal from './ConfirmModal';
 
 const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
   const [selectedCliente, setSelectedCliente] = useState(null);
+  const [clienteAEditar, setClienteAEditar] = useState(null);
+  const [modalEditarOpen, setModalEditarOpen] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(true);
+  const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
+  const [clienteAEliminar, setClienteAEliminar] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [mensajeAdvertencia, setMensajeAdvertencia] = useState(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/immutability
@@ -22,6 +30,38 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
       console.error("Error al traer clientes");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenEditar = (cliente) => {
+    setClienteAEditar(cliente);
+    setModalEditarOpen(true);
+  };
+
+  // Solicitar eliminación abriendo el modal de confirmación
+  const handleSolicitarEliminacion = (cliente) => {
+    setClienteAEliminar(cliente);
+    setModalConfirmOpen(true);
+  };
+
+  // Confirmar eliminación en el backend
+  const handleConfirmarEliminacion = async () => {
+    if (!clienteAEliminar) return;
+    try {
+      setDeleting(true);
+      await api.delete(`/clientes/${clienteAEliminar.id}/`);
+      setModalConfirmOpen(false);
+      setClienteAEliminar(null);
+      fetchClientes();
+    } catch (err) {
+      const errorServidor = err.response?.data?.error || "No se puede eliminar este cliente porque posee créditos u operaciones registradas.";
+      
+      // Cerramos el modal de confirmación y mostramos la advertencia custom
+      setModalConfirmOpen(false);
+      setClienteAEliminar(null);
+      setMensajeAdvertencia(errorServidor);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -66,13 +106,13 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
         
         <div className="w-full overflow-x-auto block">
           
-          <table className="text-left border-collapse min-w-[780px] lg:w-full table-fixed lg:table-auto">
+          <table className="text-left border-collapse min-w-[850px] lg:w-full table-fixed lg:table-auto">
             <thead>
               <tr className="bg-fin-charcoal-light/50 border-b border-gray-800 text-xs font-bold text-gray-400 uppercase tracking-wider">
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[260px] min-w-[260px]">Cliente</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[140px] min-w-[140px]">Dni</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[180px] min-w-[180px]">Contacto</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[200px] min-w-[200px]">Acciones</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[240px] min-w-[240px]">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
@@ -129,13 +169,14 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
 
                   {/* Columna Acciones */}
                   <td className="p-5 text-center whitespace-nowrap">
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-1.5">
                       {cliente.tiene_mora && (
-                        <div className="bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-red-500 text-[9px] font-bold flex-shrink-0">
+                        <div className="bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-red-500 text-[9px] font-bold flex-shrink-0 mr-1">
                           MOROSO
                         </div>
                       )}
                       
+                      {/* Ver expediente */}
                       <button 
                         onClick={() => onVerPerfil(cliente.id)}
                         className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-cyan hover:text-white transition-all flex-shrink-0"
@@ -144,12 +185,31 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                         <Eye size={18} />
                       </button>
 
+                      {/* Ver Detalle Rápido */}
                       <button 
                         onClick={() => setSelectedCliente(cliente.id)}
                         className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all flex-shrink-0"
                         title="Ver Detalle Rápido"
                       >
                         <ExternalLink size={18} />
+                      </button>
+
+                      {/* BOTÓN EDITAR */}
+                      <button 
+                        onClick={() => handleOpenEditar(cliente)}
+                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-amber-400 hover:text-white transition-all flex-shrink-0"
+                        title="Editar Información del Cliente"
+                      >
+                        <Edit size={18} />
+                      </button>
+
+                      {/* BOTÓN ELIMINAR */}
+                      <button 
+                        onClick={() => handleSolicitarEliminacion(cliente)}
+                        className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-200 transition-all flex-shrink-0"
+                        title="Eliminar Cliente"
+                      >
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>
@@ -165,6 +225,39 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
           )}
         </div>
       </div>
+
+      {/* Modal de Edición de Cliente */}
+      <EditarClienteModal 
+        isOpen={modalEditarOpen}
+        onClose={() => {
+          setModalEditarOpen(false);
+          setClienteAEditar(null);
+        }}
+        cliente={clienteAEditar}
+        onRefresh={fetchClientes}
+      />
+
+      {/* Modal de Confirmación de Borrado */}
+      <ConfirmModal
+        isOpen={modalConfirmOpen}
+        onClose={() => {
+          setModalConfirmOpen(false);
+          setClienteAEliminar(null);
+        }}
+        onConfirm={handleConfirmarEliminacion}
+        loading={deleting}
+        titulo={`¿Eliminar a ${clienteAEliminar?.nombre || ''} ${clienteAEliminar?.apellido || ''}?`}
+        mensaje="Esta acción borrará permanentemente la información del cliente. Solo se procesará si no posee préstamos activos."
+      />
+
+      <ConfirmModal
+        isOpen={!!mensajeAdvertencia}
+        onClose={() => setMensajeAdvertencia(null)}
+        titulo="Acción Bloqueada"
+        mensaje={mensajeAdvertencia}
+        isAlert={true}
+      />
+
     </div>
   );
 };

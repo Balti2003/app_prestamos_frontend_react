@@ -50,36 +50,38 @@ const NuevoPrestamoModal = ({ isOpen, onClose, onRefresh, onDescargarComprobante
     e.preventDefault();
     setLoading(true);
 
+    // Generamos la fecha de hoy en formato YYYY-MM-DD local
+    const hoy = new Date().toISOString().split('T')[0];
+
     const payload = {
-        cliente: parseInt(formData.cliente),
-        monto_solicitado: parseFloat(formData.monto),
-        tasa_interes: parseFloat(formData.tasa_interes),
-        cuotas_totales: parseInt(formData.cuotas),  
-        frecuencia: formData.frecuencia.toLowerCase(),
-        // Si ingresó fecha la enviamos; si está vacía enviamos null para que Django tome la fecha/hora actual
-        fecha_inicio: formData.fecha_inicio ? formData.fecha_inicio : null
+      cliente: parseInt(formData.cliente),
+      monto_solicitado: parseFloat(formData.monto),
+      tasa_interes: parseFloat(formData.tasa_interes),
+      cuotas_totales: parseInt(formData.cuotas),  
+      frecuencia: formData.frecuencia.toLowerCase(),
+      // Si la ingresó usa esa, si la dejó vacía usa 'hoy' (YYYY-MM-DD)
+      fecha_inicio: formData.fecha_inicio ? formData.fecha_inicio : hoy
     };
 
     try {
-        const response = await api.post('/prestamos/', payload);
+      const response = await api.post('/prestamos/', payload);
 
-        // Si se crea con éxito, activamos la vista de confirmación
-        if (response.data && response.data.id) {
-          setPrestamoCreado(response.data);
-        } else {
-          handleCerrarTodo();
-        }
+      if (response.data && response.data.id) {
+        setPrestamoCreado(response.data);
+      } else {
+        handleCerrarTodo();
+      }
 
     } catch (err) {
-        if (err.response && err.response.data) {
-            console.error("Error detallado:", err.response.data);
-            const firstError = Object.values(err.response.data)[0];
-            alert("Error: " + firstError);
-        } else {
-            alert("Error al conectar con el servidor");
-        }
+      if (err.response && err.response.data) {
+        console.error("Error detallado:", err.response.data);
+        const firstError = Object.values(err.response.data)[0];
+        alert("Error: " + (Array.isArray(firstError) ? firstError[0] : firstError));
+      } else {
+        alert("Error al conectar con el servidor");
+      }
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 

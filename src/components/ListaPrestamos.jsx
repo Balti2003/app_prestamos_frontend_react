@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
-import { Search, FileText, CheckCircle2, Clock, AlertTriangle, Eye } from 'lucide-react';
+import { Search, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Trash2 } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 
 const ListaPrestamos = ({ onVerCliente }) => {
   const [prestamos, setPrestamos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('TODOS');
+  const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
+  const [prestamoAEliminar, setPrestamoAEliminar] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchPrestamos = async () => {
     try {
@@ -32,6 +36,29 @@ const ListaPrestamos = ({ onVerCliente }) => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPrestamos();
   }, []);
+
+  // Abre el modal guardando el ID del préstamo a eliminar
+  const handleSolicitarEliminacion = (prestamoId) => {
+    setPrestamoAEliminar(prestamoId);
+    setModalConfirmOpen(true);
+  };
+
+  // Ejecuta la baja contable en la API cuando el usuario confirma en el modal
+  const handleConfirmarEliminacion = async () => {
+    if (!prestamoAEliminar) return;
+    try {
+      setDeleting(true);
+      await api.delete(`/prestamos/${prestamoAEliminar}/`);
+      
+      setModalConfirmOpen(false);
+      setPrestamoAEliminar(null);
+      fetchPrestamos(); // Recargar lista actualizada
+    } catch (err) {
+      alert(err.response?.data?.error || "Error al eliminar el préstamo.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Filtrado de la lista
   const prestamosFiltrados = prestamos.filter((p) => {
@@ -152,7 +179,6 @@ const ListaPrestamos = ({ onVerCliente }) => {
                       </td>
                       <td className="p-4 text-gray-400 font-medium">
                         {(() => {
-                            // Busca si viene fecha_inicio o fecha_creacion
                             const fechaRaw = p.fecha_inicio || p.fecha_creacion;
                             if (!fechaRaw) return '---';
 
@@ -192,13 +218,23 @@ const ListaPrestamos = ({ onVerCliente }) => {
                         {getBadgeEstado(p.estado)}
                       </td>
                       <td className="p-4 text-center">
-                        <button
-                          onClick={() => onVerCliente(p.cliente || p.cliente_detail?.id)}
-                          className="p-2 bg-fin-dark-bg hover:bg-fin-violet/20 border border-gray-700 hover:border-fin-violet rounded-xl text-fin-violet transition-all"
-                          title="Ver Perfil del Cliente"
-                        >
-                          <Eye size={16} />
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => onVerCliente(p.cliente || p.cliente_detail?.id)}
+                            className="p-2 bg-fin-dark-bg hover:bg-fin-violet/20 border border-gray-700 hover:border-fin-violet rounded-xl text-fin-violet transition-all"
+                            title="Ver Perfil del Cliente"
+                          >
+                            <Eye size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => handleSolicitarEliminacion(p.id)}
+                            className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all"
+                            title="Eliminar / Cancelar Préstamo"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -208,6 +244,19 @@ const ListaPrestamos = ({ onVerCliente }) => {
           </div>
         )}
       </div>
+
+      {/* ⚡ MODAL DE CONFIRMACIÓN CUSTOM */}
+      <ConfirmModal
+        isOpen={modalConfirmOpen}
+        onClose={() => {
+          setModalConfirmOpen(false);
+          setPrestamoAEliminar(null);
+        }}
+        onConfirm={handleConfirmarEliminacion}
+        loading={deleting}
+        titulo={`¿Eliminar Préstamo #${prestamoAEliminar}?`}
+        mensaje="Esta acción eliminará el contrato, sus cuotas asociadas y revertirá los asientos contables en caja."
+      />
 
     </div>
   );
