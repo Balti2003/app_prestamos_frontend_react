@@ -1,5 +1,17 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpCircle, ArrowDownCircle, Calendar, Filter, ReceiptText, Download, FileText, PlusCircle } from 'lucide-react';
+import { 
+  ArrowUpCircle, 
+  ArrowDownCircle, 
+  Calendar, 
+  Filter, 
+  ReceiptText, 
+  Download, 
+  FileText, 
+  PlusCircle,
+  Wallet,
+  ArrowRightLeft,
+  CreditCard
+} from 'lucide-react';
 import api from '../api';
 import NuevoMovimientoModal from './NuevoMovimientoModal';
 
@@ -90,6 +102,32 @@ const HistorialMovimientos = () => {
     }
   };
 
+  // Función auxiliar para renderizar el badge de forma de pago
+  const renderMetodoPagoBadge = (metodo) => {
+    const metodoLower = (metodo || 'efectivo').toLowerCase();
+    switch (metodoLower) {
+      case 'transferencia':
+        return (
+          <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto">
+            <ArrowRightLeft size={12} /> Transferencia
+          </span>
+        );
+      case 'otro':
+        return (
+          <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto">
+            <CreditCard size={12} /> Otro
+          </span>
+        );
+      case 'efectivo':
+      default:
+        return (
+          <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto">
+            <Wallet size={12} /> Efectivo
+          </span>
+        );
+    }
+  };
+
   if (loading) return <div className="p-10 text-center text-fin-cyan animate-pulse font-black uppercase italic">Sincronizando caja...</div>;
 
   return (
@@ -142,12 +180,13 @@ const HistorialMovimientos = () => {
         
         <div className="w-full overflow-x-auto block">      
           
-          <table className="text-left border-collapse min-w-[850px] lg:w-full table-fixed lg:table-auto">
+          <table className="text-left border-collapse min-w-[950px] lg:w-full table-fixed lg:table-auto">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-900/30 text-xs font-bold text-gray-400 uppercase tracking-wider">
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[160px] min-w-[160px]">Fecha y Hora</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[340px] min-w-[340px]">Detalle de Operación</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[120px] min-w-[120px]">Tipo</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[300px] min-w-[300px]">Detalle de Operación</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[110px] min-w-[110px]">Tipo</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[140px] min-w-[140px]">Forma de Pago</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right w-[130px] min-w-[130px]">Monto</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[100px] min-w-[100px]">Recibo</th>
               </tr>
@@ -194,6 +233,11 @@ const HistorialMovimientos = () => {
                         {m.tipo}
                       </span>
                     </td>
+
+                    {/* ⚡ COLUMNA NUEVA: FORMA DE PAGO */}
+                    <td className="p-5 text-center whitespace-nowrap">
+                      {renderMetodoPagoBadge(m.metodo_pago)}
+                    </td>
                     
                     <td className="p-5 text-right font-mono font-black whitespace-nowrap">
                       <span className={tipoLower === 'ingreso' ? 'text-green-400' : 'text-red-400'}>
@@ -239,7 +283,7 @@ const HistorialMovimientos = () => {
                 );
               }) : (
                 <tr>
-                  <td colSpan="5" className="p-20 text-center text-gray-600 italic text-sm">
+                  <td colSpan="6" className="p-20 text-center text-gray-600 italic text-sm">
                     No se encontraron movimientos en este rango de fechas.
                   </td>
                 </tr>

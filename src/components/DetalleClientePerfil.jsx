@@ -6,7 +6,10 @@ import {
   CheckCircle, 
   Clock, 
   ReceiptText,
-  ArrowLeft
+  ArrowLeft,
+  Wallet,
+  ArrowRightLeft,
+  CreditCard
 } from 'lucide-react';
 import SeccionGarantias from './SeccionGarantias';
 import TarjetaPrestamoVigente from './TarjetaPrestamoVigente';
@@ -94,6 +97,31 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
     if (porcentaje >= 85) return 'text-green-400 border-green-500/20 bg-green-500/5';
     if (porcentaje >= 65) return 'text-amber-400 border-amber-500/20 bg-amber-500/5';
     return 'text-red-400 border-red-500/20 bg-red-500/5';
+  };
+
+  // Función auxiliar para renderizar la etiqueta del método de pago
+  const renderMetodoPagoBadge = (metodo) => {
+    switch (metodo) {
+      case 'transferencia':
+        return (
+          <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-[10px] font-black uppercase flex items-center gap-1 w-max">
+            <ArrowRightLeft size={12} /> Transferencia
+          </span>
+        );
+      case 'otro':
+        return (
+          <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-[10px] font-black uppercase flex items-center gap-1 w-max">
+            <CreditCard size={12} /> Otro
+          </span>
+        );
+      case 'efectivo':
+      default:
+        return (
+          <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase flex items-center gap-1 w-max">
+            <Wallet size={12} /> Efectivo
+          </span>
+        );
+    }
   };
 
   {/* --- VALIDACIONES DE CARGA ANTES DE LA DESESTRUCTURACIÓN --- */}
@@ -299,6 +327,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                     <th className="p-4">Fecha Pago</th>
                     <th className="p-4">Capital Base</th>
                     <th className="p-4">Mora Cobrada</th>
+                    <th className="p-4">Forma de Pago</th> {/* 👈 NUEVA COLUMNA */}
                     <th className="p-4 text-center">Comprobante</th>
                   </tr>
                 </thead>
@@ -322,6 +351,12 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                           <span className="text-gray-600">—</span>
                         )}
                       </td>
+
+                      {/* ⚡ NUEVA CELDA: FORMA DE PAGO */}
+                      <td className="p-4">
+                        {renderMetodoPagoBadge(pago.metodo_pago)}
+                      </td>
+
                       <td className="p-4 text-center">
                         <button
                           onClick={() => onDescargarRecibo(pago.id)}

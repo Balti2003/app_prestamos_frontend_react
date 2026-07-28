@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare, Layers } from 'lucide-react';
+import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare, Layers, Wallet, ArrowRightLeft, CreditCard } from 'lucide-react';
 import api from '../api';
 
 const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
@@ -14,6 +14,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
   const [montoIngresado, setMontoIngresado] = useState('');
   const [pagoExitoso, setPagoExitoso] = useState(false);
   const [idCuotaPagada, setIdCuotaPagada] = useState(null);
+  const [metodoPago, setMetodoPago] = useState('efectivo');
 
   const parsearMonto = (valor) => {
     if (valor === null || valor === undefined) return 0;
@@ -33,6 +34,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       setSelectedPrestamoId('');
       setCuotasDisponibles([]);
       setMontoIngresado('');
+      setMetodoPago('efectivo');
       setPagoExitoso(false);
       setIdCuotaPagada(null);
     }
@@ -127,7 +129,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       const totalCuota = parsearMonto(c.monto_total ?? c.monto ?? 0);
       const pagadoAnteriormente = parsearMonto(c.monto_pagado);
 
-      // Calculamos el saldo capital pendiente real para esta cuota
       // eslint-disable-next-line no-useless-assignment
       let saldoCapital = 0;
       if (c.saldo_pendiente !== undefined && c.saldo_pendiente !== null) {
@@ -173,8 +174,10 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     setLoading(true);
 
     try {
+      // ⚡ ENVIAMOS EL MÉTODO DE PAGO JUNTO CON EL MONTO
       const response = await api.post(`/prestamos/${selectedPrestamoId}/registrar-pago/`, {
-        monto: monto
+        monto: monto,
+        metodo_pago: metodoPago 
       });
 
       if (response.data.desglose && response.data.desglose.length > 0) {
@@ -327,6 +330,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                   </div>
                 ) : (
                   <div className="space-y-5">
+                    
                     {/* CAMPO EDITABLE DE MONTO */}
                     <div className="flex flex-col space-y-2">
                       <label className="text-xs font-black text-gray-500 uppercase tracking-widest">
@@ -349,13 +353,65 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                       </p>
                     </div>
 
+                    {/* ⚡ NUEVO: SELECTOR DE FORMA DE PAGO (3 OPCIONES) */}
+                    <div className="flex flex-col space-y-2">
+                      <label className="text-xs font-black text-gray-500 uppercase tracking-widest">
+                        Forma de Pago
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        
+                        {/* EFECTIVO */}
+                        <button
+                          type="button"
+                          onClick={() => setMetodoPago('efectivo')}
+                          className={`py-3 px-2 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 border ${
+                            metodoPago === 'efectivo'
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-lg'
+                              : 'bg-fin-charcoal text-gray-400 border-gray-800 hover:text-white'
+                          }`}
+                        >
+                          <Wallet size={16} />
+                          <span>Efectivo</span>
+                        </button>
+
+                        {/* TRANSFERENCIA */}
+                        <button
+                          type="button"
+                          onClick={() => setMetodoPago('transferencia')}
+                          className={`py-3 px-2 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 border ${
+                            metodoPago === 'transferencia'
+                              ? 'bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-lg'
+                              : 'bg-fin-charcoal text-gray-400 border-gray-800 hover:text-white'
+                          }`}
+                        >
+                          <ArrowRightLeft size={16} />
+                          <span>Transferencia</span>
+                        </button>
+
+                        {/* OTRO */}
+                        <button
+                          type="button"
+                          onClick={() => setMetodoPago('otro')}
+                          className={`py-3 px-2 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 border ${
+                            metodoPago === 'otro'
+                              ? 'bg-purple-500/20 text-purple-400 border-purple-500/50 shadow-lg'
+                              : 'bg-fin-charcoal text-gray-400 border-gray-800 hover:text-white'
+                          }`}
+                        >
+                          <CreditCard size={16} />
+                          <span>Otro</span>
+                        </button>
+
+                      </div>
+                    </div>
+
                     {/* PREVISUALIZACIÓN DE CASCADA (SOLO DE ESTE PRÉSTAMO) */}
                     {simulacion.desgloses.length > 0 && (
                       <div className="p-4 bg-fin-dark-bg/60 border border-gray-800 rounded-2xl space-y-2">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block border-b border-gray-800 pb-1.5">
                           Distribución en Contrato #{selectedPrestamoId}
                         </span>
-                        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 custom-scrollbar">
                           {simulacion.desgloses.map((d) => (
                             <div key={d.numero_cuota} className="flex justify-between items-center text-xs font-mono py-1 border-b border-gray-800/40 last:border-0">
                               <span className="text-gray-300 font-bold">Cuota #{d.numero_cuota}</span>
