@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   ArrowUpCircle, 
   ArrowDownCircle, 
@@ -16,11 +16,13 @@ import {
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import NuevoMovimientoModal from './NuevoMovimientoModal';
+import Paginador from './Paginador';
 
 const HistorialMovimientos = () => {
   const { esAdmin } = useAuth();
   const [movimientos, setMovimientos] = useState([]);
-  const [filteredMovimientos, setFilteredMovimientos] = useState([]);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const [pagina, setPagina] = useState(1);
   const [loading, setLoading] = useState(true);
   const [descargando, setDescargando] = useState(null);
   const [modalMovimientoOpen, setModalMovimientoOpen] = useState(false);
@@ -28,45 +30,42 @@ const HistorialMovimientos = () => {
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
 
-  useEffect(() => {
-    if (esAdmin) {
-      // eslint-disable-next-line react-hooks/immutability
-      fetchMovimientos();
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+  const fetchMovimientos = useCallback(async () => {
+    if (!esAdmin) {
       setLoading(false);
+      return;
     }
-  }, [esAdmin]);
 
-  useEffect(() => {
-    if (!esAdmin) return;
-
-    let resultado = movimientos;
-    if (fechaDesde) {
-      resultado = resultado.filter(m => new Date(m.fecha) >= new Date(fechaDesde));
-    }
-    if (fechaHasta) {
-      const hasta = new Date(fechaHasta);
-      hasta.setHours(23, 59, 59);
-      resultado = resultado.filter(m => new Date(m.fecha) <= hasta);
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFilteredMovimientos(resultado);
-  }, [fechaDesde, fechaHasta, movimientos, esAdmin]);
-
-  const fetchMovimientos = async () => {
     try {
-      const res = await api.get('/caja/');
-      setMovimientos(res.data);
-      setFilteredMovimientos(res.data);
+      setLoading(true);
+      const params = { page: pagina };
+      if (fechaDesde) params.fecha_desde = fechaDesde;
+      if (fechaHasta) params.fecha_hasta = fechaHasta;
+
+      const res = await api.get('/caja/', { params });
+      
+      if (res.data && res.data.results) {
+        setMovimientos(res.data.results);
+        setTotalRegistros(res.data.count || 0);
+      } else {
+        const lista = Array.isArray(res.data) ? res.data : [];
+        setMovimientos(lista);
+        setTotalRegistros(lista.length);
+      }
     } catch (err) {
       console.error("Error al cargar movimientos", err);
+      setMovimientos([]);
+      setTotalRegistros(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagina, fechaDesde, fechaHasta, esAdmin]);
 
-  // 1. Descarga de Recibo de Pago (Ingreso)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchMovimientos();
+  }, [fetchMovimientos]);
+
   const handleDescargarRecibo = async (cuotaId) => {
     if (!cuotaId) return;
     setDescargando(`cuota_${cuotaId}`);
@@ -89,7 +88,6 @@ const HistorialMovimientos = () => {
     }
   };
 
-  // 2. Descarga de Comprobante de Desembolso (Egreso de Préstamo)
   const handleDescargarDesembolso = async (prestamoId) => {
     if (!prestamoId) return;
     setDescargando(`prestamo_${prestamoId}`);
@@ -112,7 +110,6 @@ const HistorialMovimientos = () => {
     }
   };
 
-  // Auxiliar para badge de forma de pago
   const renderMetodoPagoBadge = (metodo) => {
     const metodoLower = (metodo || 'efectivo').toLowerCase();
     switch (metodoLower) {
@@ -138,7 +135,6 @@ const HistorialMovimientos = () => {
     }
   };
 
-  // BARRERA DE SEGURIDAD PARA OPERADORES (Opción A)
   if (!esAdmin) {
     return (
       <div className="flex flex-col items-center justify-center p-12 my-6 bg-fin-charcoal border border-gray-800 rounded-3xl text-center space-y-4 animate-in fade-in duration-300">
@@ -175,18 +171,18 @@ const HistorialMovimientos = () => {
             type="date" 
             className="bg-fin-dark-bg border border-gray-700 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-fin-cyan flex-1 sm:flex-none"
             value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
+            onChange={(e) => { setFechaDesde(e.target.value); setPagina(1); }}
           />
           <span className="text-gray-600 text-xs">al</span>
           <input 
             type="date" 
             className="bg-fin-dark-bg border border-gray-700 rounded-lg px-3 py-1 text-xs text-white outline-none focus:border-fin-cyan flex-1 sm:flex-none"
             value={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
+            onChange={(e) => { setFechaHasta(e.target.value); setPagina(1); }}
           />
           {(fechaDesde || fechaHasta) && (
             <button 
-              onClick={() => { setFechaDesde(''); setFechaHasta(''); }}
+              onClick={() => { setFechaDesde(''); setFechaHasta(''); setPagina(1); }}
               className="text-[10px] font-black text-fin-violet px-3 hover:underline ml-auto sm:ml-0"
             >
               LIMPIAR
@@ -217,7 +213,7 @@ const HistorialMovimientos = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60 text-sm text-gray-200">
-              {filteredMovimientos.length > 0 ? filteredMovimientos.map((m) => {
+              {movimientos.length > 0 ? movimientos.map((m) => {
                 const tipoLower = (m.tipo || '').toLowerCase();
 
                 let prestamoIdExtraido = m.prestamo_id || m.prestamo;
@@ -308,6 +304,14 @@ const HistorialMovimientos = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Paginador integrado */}
+        <Paginador 
+          paginaActual={pagina} 
+          totalRegistros={totalRegistros} 
+          porPagina={10} 
+          onCambiarPagina={(nuevaPagina) => setPagina(nuevaPagina)} 
+        />
       </div>
 
       <NuevoMovimientoModal 

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Search, Phone, IdCard, ExternalLink, Eye, Edit, Trash2 } from 'lucide-react';
 import ClienteDetallePanel from './ClienteDetallePanel';
 import EditarClienteModal from './EditarClienteModal';
 import ConfirmModal from './ConfirmModal';
+import Paginador from './Paginador';
 
 const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
   const { esAdmin } = useAuth();
@@ -12,6 +13,8 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
   const [clienteAEditar, setClienteAEditar] = useState(null);
   const [modalEditarOpen, setModalEditarOpen] = useState(false);
   const [clientes, setClientes] = useState([]);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const [pagina, setPagina] = useState(1);
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
@@ -19,37 +22,53 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
   const [deleting, setDeleting] = useState(false);
   const [mensajeAdvertencia, setMensajeAdvertencia] = useState(null);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
-    fetchClientes();
-  }, []);
-
-  const fetchClientes = async () => {
+  const fetchClientes = useCallback(async () => {
     try {
-      const res = await api.get('/clientes/');
-      setClientes(res.data);
+      setLoading(true);
+      const params = { page: pagina };
+      if (busqueda.trim()) params.search = busqueda.trim();
+
+      const res = await api.get('/clientes/', { params });
+      
+      if (res.data && res.data.results) {
+        setClientes(res.data.results);
+        setTotalRegistros(res.data.count || 0);
+      } else {
+        const lista = Array.isArray(res.data) ? res.data : [];
+        setClientes(lista);
+        setTotalRegistros(lista.length);
+      }
     } catch {
       console.error("Error al traer clientes");
+      setClientes([]);
+      setTotalRegistros(0);
     } finally {
       setLoading(false);
     }
+  }, [pagina, busqueda]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchClientes();
+  }, [fetchClientes]);
+
+  const handleBuscar = (e) => {
+    setBusqueda(e.target.value);
+    setPagina(1);
   };
 
   const handleOpenEditar = (cliente) => {
-    // Bloqueo de seguridad para evitar abrir el modal si no es Admin
     if (!esAdmin) return;
     setClienteAEditar(cliente);
     setModalEditarOpen(true);
   };
 
-  // Solicitar eliminación abriendo el modal de confirmación
   const handleSolicitarEliminacion = (cliente) => {
     if (!esAdmin) return;
     setClienteAEliminar(cliente);
     setModalConfirmOpen(true);
   };
 
-  // Confirmar eliminación en el backend
   const handleConfirmarEliminacion = async () => {
     if (!clienteAEliminar || !esAdmin) return;
     try {
@@ -60,7 +79,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
       fetchClientes();
     } catch (err) {
       const errorServidor = err.response?.data?.error || "No se puede eliminar este cliente porque posee créditos u operaciones registradas.";
-      
       setModalConfirmOpen(false);
       setClienteAEliminar(null);
       setMensajeAdvertencia(errorServidor);
@@ -68,18 +86,10 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
       setDeleting(false);
     }
   };
-
-  // Filtrado en tiempo real
-  const clientesFiltrados = clientes.filter(c => 
-    c.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
-    c.apellido.toLowerCase().includes(busqueda.toLowerCase()) ||
-    c.dni.includes(busqueda)
-  );
   
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
       
-      {/* Panel Lateral de Detalle */}
       <ClienteDetallePanel 
         clienteId={selectedCliente} 
         onClose={() => setSelectedCliente(null)} 
@@ -92,7 +102,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
           <p className="text-fin-gray-text text-sm">Gestiona y visualiza el estado de tus prestatarios.</p>
         </div>
 
-        {/* Buscador Pro */}
         <div className="relative w-full md:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
           <input 
@@ -100,16 +109,13 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
             placeholder="Buscar por nombre, apellido o DNI..."
             className="w-full bg-fin-charcoal border border-gray-800 rounded-2xl py-3 pl-12 pr-4 text-white focus:border-fin-cyan focus:ring-1 focus:ring-fin-cyan outline-none transition-all"
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={handleBuscar}
           />
         </div>
       </div>
 
-      {/* Tarjeta de la Tabla */}
       <div className="bg-fin-charcoal rounded-3xl border border-gray-800 shadow-fin-card overflow-hidden w-full">
-        
         <div className="w-full overflow-x-auto block">
-          
           <table className="text-left border-collapse min-w-[850px] lg:w-full table-fixed lg:table-auto">
             <thead>
               <tr className="bg-fin-charcoal-light/50 border-b border-gray-800 text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -120,7 +126,7 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
-              {clientesFiltrados.map((cliente) => (
+              {clientes.map((cliente) => (
                 <tr key={cliente.id} className="hover:bg-fin-violet/5 transition-colors group">
                   
                   <td className="p-5 whitespace-nowrap">
@@ -155,7 +161,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                     </div>
                   </td>
 
-                  {/* Columna DNI */}
                   <td className="p-5 text-sm text-gray-300 font-mono italic whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <IdCard size={14} className="text-gray-600 flex-shrink-0" />
@@ -163,7 +168,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                     </div>
                   </td>
 
-                  {/* Columna Teléfono */}
                   <td className="p-5 text-sm text-gray-300 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <Phone size={14} className="text-gray-600 flex-shrink-0" />
@@ -171,7 +175,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                     </div>
                   </td>
 
-                  {/* Columna Acciones */}
                   <td className="p-5 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-1.5">
                       {cliente.tiene_mora && (
@@ -180,7 +183,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                         </div>
                       )}
                       
-                      {/* Ver expediente */}
                       <button 
                         onClick={() => onVerPerfil(cliente.id)}
                         className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-cyan hover:text-white transition-all flex-shrink-0"
@@ -189,7 +191,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                         <Eye size={18} />
                       </button>
 
-                      {/* Ver Detalle Rápido */}
                       <button 
                         onClick={() => setSelectedCliente(cliente.id)}
                         className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all flex-shrink-0"
@@ -198,7 +199,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                         <ExternalLink size={18} />
                       </button>
 
-                      {/* BOTÓN EDITAR (SOLO PARA ADMINISTRADORES) */}
                       {esAdmin && (
                         <button 
                           onClick={() => handleOpenEditar(cliente)}
@@ -209,7 +209,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                         </button>
                       )}
 
-                      {/* BOTÓN ELIMINAR (SOLO PARA ADMINISTRADORES) */}
                       {esAdmin && (
                         <button 
                           onClick={() => handleSolicitarEliminacion(cliente)}
@@ -226,15 +225,22 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
             </tbody>
           </table>
           
-          {clientesFiltrados.length === 0 && !loading && (
+          {clientes.length === 0 && !loading && (
             <div className="p-20 text-center text-gray-600 uppercase font-black tracking-widest text-sm">
               No se encontraron clientes que coincidan
             </div>
           )}
         </div>
+
+        {/* Paginador integrado */}
+        <Paginador 
+          paginaActual={pagina} 
+          totalRegistros={totalRegistros} 
+          porPagina={10} 
+          onCambiarPagina={(nuevaPagina) => setPagina(nuevaPagina)} 
+        />
       </div>
 
-      {/* Modal de Edición de Cliente (Solo si es Administrador) */}
       {esAdmin && (
         <EditarClienteModal 
           isOpen={modalEditarOpen}
@@ -247,7 +253,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
         />
       )}
 
-      {/* Modal de Confirmación de Borrado */}
       {esAdmin && (
         <ConfirmModal
           isOpen={modalConfirmOpen}

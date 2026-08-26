@@ -42,7 +42,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
 
   const fetchClientes = async () => {
     try {
-      const res = await api.get('/clientes/');
+      const res = await api.get('/clientes/todos/');
       setClientes(res.data);
     } catch (err) { console.error("Error cargando clientes", err); }
   };
