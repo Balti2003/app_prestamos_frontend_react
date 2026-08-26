@@ -110,29 +110,37 @@ const HistorialMovimientos = () => {
     }
   };
 
+  // Función auxiliar para renderizar el badge de forma de pago
   const renderMetodoPagoBadge = (metodo) => {
-    const metodoLower = (metodo || 'efectivo').toLowerCase();
-    switch (metodoLower) {
-      case 'transferencia':
-        return (
-          <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto">
-            <ArrowRightLeft size={12} /> Transferencia
-          </span>
-        );
-      case 'otro':
-        return (
-          <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto">
-            <CreditCard size={12} /> Otro
-          </span>
-        );
-      case 'efectivo':
-      default:
-        return (
-          <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto">
-            <Wallet size={12} /> Efectivo
-          </span>
-        );
+    const valorOriginal = String(metodo || 'efectivo').trim();
+    const metodoLower = valorOriginal.toLowerCase();
+
+    if (metodoLower === 'transferencia') {
+      return (
+        <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto">
+          <ArrowRightLeft size={12} /> Transferencia
+        </span>
+      );
     }
+
+    if (metodoLower === 'efectivo') {
+      return (
+        <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto">
+          <Wallet size={12} /> Efectivo
+        </span>
+      );
+    }
+
+    // Para 'otro' o cualquier descripción personalizada (ej: 'Cheque n° 4567')
+    return (
+      <span 
+        className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto max-w-[180px] truncate"
+        title={valorOriginal}
+      >
+        <CreditCard size={12} className="flex-shrink-0" />
+        <span className="truncate">{valorOriginal}</span>
+      </span>
+    );
   };
 
   if (!esAdmin) {

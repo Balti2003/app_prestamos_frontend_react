@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare, Layers, Wallet, ArrowRightLeft, CreditCard } from 'lucide-react';
+import { X, ReceiptText, DollarSign, Calendar, ArrowRight, CheckSquare, Layers, Wallet, ArrowRightLeft, CreditCard, Edit3 } from 'lucide-react';
 import api from '../api';
 
 const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
@@ -9,12 +9,13 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
   const [cuotasDisponibles, setCuotasDisponibles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingCuotas, setLoadingCuotas] = useState(false);
-  const [step, setStep] = useState(1); // 1: Buscar cliente, 2: Seleccionar Préstamo/Ingresar Pago
+  const [step, setStep] = useState(1);
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [montoIngresado, setMontoIngresado] = useState('');
   const [pagoExitoso, setPagoExitoso] = useState(false);
   const [idCuotaPagada, setIdCuotaPagada] = useState(null);
   const [metodoPago, setMetodoPago] = useState('efectivo');
+  const [metodoPagoDetalle, setMetodoPagoDetalle] = useState(''); // 👈 Nuevo estado
 
   const parsearMonto = (valor) => {
     if (valor === null || valor === undefined) return 0;
@@ -35,6 +36,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       setCuotasDisponibles([]);
       setMontoIngresado('');
       setMetodoPago('efectivo');
+      setMetodoPagoDetalle('');
       setPagoExitoso(false);
       setIdCuotaPagada(null);
     }
@@ -54,12 +56,9 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     try {
       const res = await api.get(`/clientes/${cliente.id}/cuotas_cobrables/`);
       const cuotas = res.data || [];
-      
-      // Agrupamos o filtramos los préstamos únicos que tiene el cliente
       const idsPrestamos = [...new Set(cuotas.map(c => c.prestamo_id || c.prestamo))].filter(Boolean);
       setPrestamosCliente(idsPrestamos);
 
-      // Si tiene al menos un préstamo, preseleccionamos el primero
       if (idsPrestamos.length > 0) {
         const firstId = idsPrestamos[0];
         setSelectedPrestamoId(firstId.toString());
@@ -74,7 +73,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     }
   };
 
-  // Filtra las cuotas para que solo pertenezcan al préstamo seleccionado
   const filtrarYSetearCuotas = (todasLasCuotas, prestamoId) => {
     const cuotasDelPrestamo = todasLasCuotas.filter(
       c => String(c.prestamo_id || c.prestamo) === String(prestamoId)
@@ -83,8 +81,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
 
     if (cuotasDelPrestamo.length > 0) {
       const primeraCuota = cuotasDelPrestamo[0];
-      
-      // Calculamos el saldo pendiente real considerando los abonos parciales previos
       const total = parsearMonto(primeraCuota.monto_total ?? primeraCuota.monto ?? 0);
       const pagadoAnteriormente = parsearMonto(primeraCuota.monto_pagado);
       
@@ -107,7 +103,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     }
   };
 
-  // Simulación en tiempo real limitada EXCLUSIVAMENTE a las cuotas del préstamo elegido
   const simulacion = useMemo(() => {
     const monto = parsearMonto(montoIngresado);
     if (monto <= 0 || !cuotasDisponibles || cuotasDisponibles.length === 0) {
@@ -115,7 +110,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     }
 
     let disponible = monto;
-
     const cuotasOrdenadas = [...cuotasDisponibles].sort(
       (a, b) => (a.numero_cuota || 0) - (b.numero_cuota || 0)
     );
@@ -140,13 +134,11 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       let moraAbonada = 0;
       let capitalAbonado = 0;
 
-      // 1. Cobrar mora
       if (moraCuota > 0) {
         moraAbonada = Math.min(disponible, moraCuota);
         disponible -= moraAbonada;
       }
 
-      // 2. Cobrar capital/saldo pendiente
       if (disponible > 0 && saldoCapital > 0) {
         capitalAbonado = Math.min(disponible, saldoCapital);
         disponible -= capitalAbonado;
@@ -171,13 +163,18 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
     const monto = parsearMonto(montoIngresado);
     if (monto <= 0 || !selectedPrestamoId) return;
 
+    if (metodoPago === 'otro' && !metodoPagoDetalle.trim()) {
+      alert("Por favor, especifica la descripción de la forma de pago.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // ⚡ ENVIAMOS EL MÉTODO DE PAGO JUNTO CON EL MONTO
       const response = await api.post(`/prestamos/${selectedPrestamoId}/registrar-pago/`, {
         monto: monto,
-        metodo_pago: metodoPago 
+        metodo_pago: metodoPago,
+        metodo_pago_detalle: metodoPagoDetalle.trim() // 👈 Enviamos la descripción
       });
 
       if (response.data.desglose && response.data.desglose.length > 0) {
@@ -188,7 +185,8 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       if (onRefresh) onRefresh();
 
     } catch (err) {
-      alert(err.response?.data?.error || "Error al registrar el pago");
+      const mensajeError = err.response?.data?.error || err.response?.data?.detail || "Error al registrar el pago en caja.";
+      alert(mensajeError);
     } finally {
       setLoading(false);
     }
@@ -219,7 +217,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
 
       <div className="relative bg-fin-charcoal-light w-full max-w-lg rounded-3xl border border-gray-800 shadow-2xl overflow-hidden animate-in zoom-in duration-200">
         
-        {/* Cabecera */}
         <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-fin-charcoal/50">
           <h3 className="text-xl font-black italic text-white flex items-center gap-2">
             <ReceiptText className="text-fin-cyan" /> REGISTRAR PAGO
@@ -229,7 +226,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
 
         <div className="p-8">
           {pagoExitoso ? (
-            /* PANTALLA DE ÉXITO */
             <div className="py-10 flex flex-col items-center text-center animate-in zoom-in duration-300">
               <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-6 shadow-neon-green">
                 <CheckSquare size={40} />
@@ -260,7 +256,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
             </div>
           ) : (
             step === 1 ? (
-              /* PASO 1: SELECCIÓN DE CLIENTE */
               <div className="space-y-4">
                 <p className="text-gray-400 text-sm text-center">Seleccioná el cliente que realizará el pago</p>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -285,7 +280,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                 </div>
               </div>
             ) : (
-              /* PASO 2: SELECCIÓN DE PRÉSTAMO Y MONTO */
               <form onSubmit={handleSubmit} className="space-y-6 animate-in slide-in-from-right-4">
                 
                 {/* INFO DEL CLIENTE */}
@@ -301,7 +295,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                   </div>
                 </div>
 
-                {/* SELECTOR DE PRÉSTAMO SI TIENE MÁS DE UNO */}
+                {/* SELECTOR DE PRÉSTAMO */}
                 {prestamosCliente.length > 1 && (
                   <div className="flex flex-col space-y-2">
                     <label className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
@@ -331,7 +325,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                 ) : (
                   <div className="space-y-5">
                     
-                    {/* CAMPO EDITABLE DE MONTO */}
+                    {/* MONTO */}
                     <div className="flex flex-col space-y-2">
                       <label className="text-xs font-black text-gray-500 uppercase tracking-widest">
                         Monto Ingresado para Préstamo #{selectedPrestamoId} ($)
@@ -348,19 +342,14 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                           autoFocus
                         />
                       </div>
-                      <p className="text-[10px] text-gray-500 italic">
-                        * Acepta pagos parciales, exactos o adelanto de cuotas para este contrato.
-                      </p>
                     </div>
 
-                    {/* ⚡ NUEVO: SELECTOR DE FORMA DE PAGO (3 OPCIONES) */}
+                    {/* SELECTOR FORMA DE PAGO */}
                     <div className="flex flex-col space-y-2">
                       <label className="text-xs font-black text-gray-500 uppercase tracking-widest">
                         Forma de Pago
                       </label>
                       <div className="grid grid-cols-3 gap-2">
-                        
-                        {/* EFECTIVO */}
                         <button
                           type="button"
                           onClick={() => setMetodoPago('efectivo')}
@@ -374,7 +363,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                           <span>Efectivo</span>
                         </button>
 
-                        {/* TRANSFERENCIA */}
                         <button
                           type="button"
                           onClick={() => setMetodoPago('transferencia')}
@@ -388,7 +376,6 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                           <span>Transferencia</span>
                         </button>
 
-                        {/* OTRO */}
                         <button
                           type="button"
                           onClick={() => setMetodoPago('otro')}
@@ -401,11 +388,28 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                           <CreditCard size={16} />
                           <span>Otro</span>
                         </button>
-
                       </div>
+
+                      {/* ⚡ CAMPO DESCRIPCIÓN CONDICIONAL */}
+                      {metodoPago === 'otro' && (
+                        <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
+                            <Edit3 size={12} className="text-purple-400" /> Descripción del Medio de Pago
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ej: Cheque N° 849302, Dólares billete, Permuta..."
+                            value={metodoPagoDetalle}
+                            onChange={(e) => setMetodoPagoDetalle(e.target.value)}
+                            className="w-full bg-fin-charcoal border border-purple-500/40 rounded-xl py-3 px-4 text-xs text-white placeholder-gray-500 outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all"
+                            autoFocus
+                          />
+                        </div>
+                      )}
                     </div>
 
-                    {/* PREVISUALIZACIÓN DE CASCADA (SOLO DE ESTE PRÉSTAMO) */}
+                    {/* PREVISUALIZACIÓN */}
                     {simulacion.desgloses.length > 0 && (
                       <div className="p-4 bg-fin-dark-bg/60 border border-gray-800 rounded-2xl space-y-2">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block border-b border-gray-800 pb-1.5">
@@ -449,7 +453,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
                   </button>
                   <button 
                     type="submit"
-                    disabled={loading || cuotasDisponibles.length === 0 || parsearMonto(montoIngresado) <= 0}
+                    disabled={loading || cuotasDisponibles.length === 0 || parsearMonto(montoIngresado) <= 0 || (metodoPago === 'otro' && !metodoPagoDetalle.trim())}
                     className="flex-[2] bg-gradient-to-r from-fin-violet to-fin-cyan text-white py-4 rounded-xl font-black shadow-neon-cyan flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
                     {loading ? "PROCESANDO..." : <><CheckSquare size={18} /> ASENTAR COBRO</>}

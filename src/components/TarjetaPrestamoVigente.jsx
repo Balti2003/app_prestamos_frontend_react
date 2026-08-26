@@ -5,7 +5,10 @@ import {
   ChevronDown, 
   ChevronUp, 
   CheckCircle, 
-  Clock 
+  Clock,
+  Wallet,
+  ArrowRightLeft,
+  CreditCard
 } from 'lucide-react';
 
 export default function TarjetaPrestamoVigente({ prestamo, onDescargarDesembolso, isDescargando }) {
@@ -21,15 +24,50 @@ export default function TarjetaPrestamoVigente({ prestamo, onDescargarDesembolso
     ? `$${montoCuotaNumeric.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
     : '—';
 
+  const renderMetodoBadge = (metodo) => {
+    const valor = String(metodo || 'efectivo').trim();
+    const metodoLower = valor.toLowerCase();
+
+    if (metodoLower === 'transferencia') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          <ArrowRightLeft size={11} /> Transferencia
+        </span>
+      );
+    }
+
+    if (metodoLower === 'efectivo') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <Wallet size={11} /> Efectivo
+        </span>
+      );
+    }
+
+    return (
+      <span 
+        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20 max-w-[170px] truncate"
+        title={valor}
+      >
+        <CreditCard size={11} className="flex-shrink-0" />
+        <span className="truncate">{valor}</span>
+      </span>
+    );
+  };
+
   return (
     <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 space-y-4">
       
       {/* Encabezado del Préstamo */}
-      <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-800 pb-3">
         <div>
-          <span className="text-xs font-bold text-fin-violet font-mono uppercase tracking-wider">
-            Contrato #{prestamo.id}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-fin-violet font-mono uppercase tracking-wider">
+              Contrato #{prestamo.id}
+            </span>
+            <span className="text-gray-700">•</span>
+            {renderMetodoBadge(prestamo.metodo_pago)}
+          </div>
           <h4 className="text-lg font-black text-white mt-0.5">
             Préstamo Activo
           </h4>
@@ -78,7 +116,7 @@ export default function TarjetaPrestamoVigente({ prestamo, onDescargarDesembolso
         <div>
           <p className="text-gray-500 font-bold text-[10px] uppercase tracking-wider">Progreso de Pagos</p>
           <p className="text-gray-300 mt-0.5 font-medium">
-            {prestamo.cuotas_pagadas} / {prestamo.cuotas_totales} <span className="text-xs text-gray-500 font-normal">pagas</span>
+            {prestamo.cuotas_pagadas ?? prestamo.cuotas_pagadas_count ?? 0} / {prestamo.cuotas_totales ?? prestamo.cantidad_cuotas ?? 0} <span className="text-xs text-gray-500 font-normal">pagas</span>
           </p>
         </div>
         <div>
