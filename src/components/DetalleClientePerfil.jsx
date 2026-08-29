@@ -12,7 +12,8 @@ import {
   CreditCard,
   Edit,
   Trash2,
-  MessageCircle
+  MessageCircle,
+  MapPin
 } from 'lucide-react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -81,6 +82,15 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
 
     const mensaje = encodeURIComponent(`Hola ${nombre}`);
     return `https://wa.me/${cleanNumber}?text=${mensaje}`;
+  };
+
+  // ⚡ Genera el enlace directo a Google Maps
+  const getMapsLink = (direccion) => {
+    if (!direccion || direccion.trim() === '' || direccion.toLowerCase() === 'sin dirección') {
+      return null;
+    }
+    const busqueda = `${direccion.trim()}, Córdoba, Argentina`;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(busqueda)}`;
   };
 
   const handleDescargarDesembolso = async (prestamoId) => {
@@ -234,6 +244,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
   const { metricas_comportamiento, historial_pagos, prestamos_activos } = cliente;
   const tieneMoraActiva = cliente.tiene_mora || cliente.estado_financiero?.estado === 'moroso' || prestamos_activos?.some(p => p.estado === 'mora');
   const whatsappUrl = getWhatsAppLink(cliente.telefono, cliente.nombre);
+  const mapsUrl = getMapsLink(cliente.direccion);
 
   return (
     <div className="space-y-6">
@@ -280,7 +291,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         {/* Acciones e Info Rápida */}
         <div className="flex flex-wrap items-center gap-4 text-xs border-t md:border-t-0 border-gray-800 pt-4 md:pt-0">
           
-          {/* ⚡ Tarjeta de Teléfono con acceso directo a WhatsApp */}
+          {/* Tarjeta de Teléfono con acceso directo a WhatsApp */}
           {whatsappUrl ? (
             <a
               href={whatsappUrl}
@@ -306,10 +317,31 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             </div>
           )}
 
-          <div className="bg-gray-900/40 border border-gray-800/80 px-4 py-2.5 rounded-xl">
-            <p className="text-gray-500 font-bold uppercase text-[9px] tracking-widest">Dirección Registrada</p>
-            <p className="text-gray-200 font-medium mt-0.5">{cliente.direccion || 'Sin dirección'}</p>
-          </div>
+          {/* ⚡ Tarjeta de Dirección con acceso directo a Google Maps */}
+          {mapsUrl ? (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-gray-900/40 hover:bg-fin-violet/10 border border-gray-800/80 hover:border-fin-violet/30 px-4 py-2.5 rounded-xl transition-all group"
+              title="Ver ubicación en Google Maps"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-gray-500 group-hover:text-fin-violet font-bold uppercase text-[9px] tracking-widest transition-colors">
+                  Dirección Registrada
+                </p>
+                <MapPin size={12} className="text-gray-600 group-hover:text-fin-violet transition-colors" />
+              </div>
+              <p className="text-gray-200 group-hover:text-violet-300 font-medium mt-0.5 transition-colors capitalize">
+                {cliente.direccion}
+              </p>
+            </a>
+          ) : (
+            <div className="bg-gray-900/40 border border-gray-800/80 px-4 py-2.5 rounded-xl">
+              <p className="text-gray-500 font-bold uppercase text-[9px] tracking-widest">Dirección Registrada</p>
+              <p className="text-gray-500 font-medium mt-0.5">Sin dirección</p>
+            </div>
+          )}
 
           {/* Botones de Acción (SOLO ADMINISTRADOR) */}
           {esAdmin && (

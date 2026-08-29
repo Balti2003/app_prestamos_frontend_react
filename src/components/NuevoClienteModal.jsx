@@ -21,11 +21,11 @@ const NuevoClienteModal = ({ isOpen, onClose, onRefresh }) => {
     setLoading(true);
 
     try {
-      // 1. Crear el cliente primero
+      // 1. Crear el cliente
       const resCliente = await api.post('/clientes/', formData);
       const nuevoClienteId = resCliente.data.id;
 
-      // 2. Si adjuntó una garantía/documento opcional, la subimos asociada al cliente creado
+      // 2. Si adjuntó garantía opcional
       if (archivoGarantia && nuevoClienteId) {
         const dataGarantia = new FormData();
         dataGarantia.append('cliente', nuevoClienteId);
@@ -75,20 +75,45 @@ const NuevoClienteModal = ({ isOpen, onClose, onRefresh }) => {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            <ModalInput icon={<User />} placeholder="Nombre" value={formData.nombre} 
-              onChange={v => setFormData({...formData, nombre: v})} />
-            <ModalInput icon={<User />} placeholder="Apellido" value={formData.apellido} 
-              onChange={v => setFormData({...formData, apellido: v})} />
+            <ModalInput 
+              icon={<User />} 
+              placeholder="Nombre" 
+              value={formData.nombre} 
+              onChange={v => setFormData({...formData, nombre: v})} 
+            />
+            <ModalInput 
+              icon={<User />} 
+              placeholder="Apellido" 
+              value={formData.apellido} 
+              onChange={v => setFormData({...formData, apellido: v})} 
+            />
           </div>
 
-          <ModalInput icon={<IdCard />} placeholder="DNI / Identificación" value={formData.dni} 
-            onChange={v => setFormData({...formData, dni: v})} />
+          <ModalInput 
+            icon={<IdCard />} 
+            placeholder="DNI / Identificación" 
+            value={formData.dni} 
+            onChange={v => setFormData({...formData, dni: v})} 
+          />
           
-          <ModalInput icon={<Phone />} placeholder="Teléfono de contacto" value={formData.telefono} 
-            onChange={v => setFormData({...formData, telefono: v})} />
+          <ModalInput 
+            icon={<Phone />} 
+            placeholder="Teléfono celular (Ej: 3534123456)" 
+            value={formData.telefono} 
+            onChange={v => setFormData({...formData, telefono: v})} 
+          />
           
-          <ModalInput icon={<MapPin />} placeholder="Dirección completa" value={formData.direccion} 
-            onChange={v => setFormData({...formData, direccion: v})} />
+          <div>
+            <ModalInput 
+              icon={<MapPin />} 
+              placeholder="Dirección (Ej: Bv. Sarmiento 450 o Calle 123, Ciudad)" 
+              value={formData.direccion} 
+              onChange={v => setFormData({...formData, direccion: v})} 
+            />
+            <p className="text-[10px] text-gray-500 mt-1.5 ml-1">
+              * Ingresa calle y altura. Si es de otra ciudad, indícala (Ej: <i>San Martín 150, Leones</i>).
+            </p>
+          </div>
 
           {/* SECCIÓN OPCIONAL: GARANTÍA O DOCUMENTACIÓN */}
           <div className="border-t border-gray-800 pt-4 mt-2 space-y-3">
@@ -136,7 +161,7 @@ const ModalInput = ({ icon, placeholder, value, onChange }) => (
     </div>
     <input
       required
-      className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-600 outline-none focus:border-fin-cyan focus:ring-1 focus:ring-fin-cyan transition-all"
+      className="w-full bg-fin-charcoal border border-gray-700 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-600 outline-none focus:border-fin-cyan focus:ring-1 focus:ring-fin-cyan transition-all text-sm"
       placeholder={placeholder}
       value={value}
       onChange={e => onChange(e.target.value)}

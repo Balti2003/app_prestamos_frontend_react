@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api';
-import { Search, Phone, IdCard, ExternalLink, Eye, CalendarClock, MessageCircle } from 'lucide-react';
+import { Search, Phone, IdCard, ExternalLink, Eye, CalendarClock, MessageCircle, MapPin } from 'lucide-react';
 import ClienteDetallePanel from './ClienteDetallePanel';
 import Paginador from './Paginador';
 
@@ -47,20 +47,39 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
     setPagina(1);
   };
 
-  // Limpia el número y genera el link directo a WhatsApp
+  // ⚡ Limpia el número y genera el link directo a WhatsApp
   const getWhatsAppLink = (telefono, nombre) => {
     if (!telefono) return null;
-    let cleanNumber = telefono.replace(/\D/g, ''); // Deja solo números
+    let cleanNumber = telefono.replace(/\D/g, '');
 
-    // Si no empieza con código de país (54), lo formateamos para Argentina
     if (!cleanNumber.startsWith('54')) {
-      // Si empieza con 0 o 15, limpiamos el prefijo común
       if (cleanNumber.startsWith('0')) cleanNumber = cleanNumber.substring(1);
       cleanNumber = `549${cleanNumber}`;
     }
 
     const mensaje = encodeURIComponent(`Hola ${nombre}`);
     return `https://wa.me/${cleanNumber}?text=${mensaje}`;
+  };
+
+  // ⚡ Genera el enlace directo a Google Maps con detección de contexto
+  const getMapsLink = (direccion) => {
+    if (!direccion || direccion.trim() === '' || direccion.toLowerCase() === 'sin dirección') {
+      return null;
+    }
+
+    const dirLimpia = direccion.trim();
+    const dirLower = dirLimpia.toLowerCase();
+
+    let busquedaCompleta = dirLimpia;
+    if (!dirLower.includes('córdoba') && !dirLower.includes('cordoba')) {
+      if (!dirLower.includes('marcos juárez') && !dirLower.includes('marcos juarez')) {
+        busquedaCompleta = `${dirLimpia}, Marcos Juárez, Córdoba, Argentina`;
+      } else {
+        busquedaCompleta = `${dirLimpia}, Córdoba, Argentina`;
+      }
+    }
+
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(busquedaCompleta)}`;
   };
 
   // Subtexto conciso debajo del nombre
@@ -182,12 +201,13 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[140px] min-w-[140px]">Dni</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[160px] min-w-[160px]">Contacto</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[220px] min-w-[220px]">Plan / Próx. Cobro</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[140px] min-w-[140px]">Acciones</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[160px] min-w-[160px]">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
               {clientes.map((cliente) => {
                 const whatsappUrl = getWhatsAppLink(cliente.telefono, cliente.nombre);
+                const mapsUrl = getMapsLink(cliente.direccion);
 
                 return (
                   <tr key={cliente.id} className="hover:bg-fin-violet/5 transition-colors group">
@@ -244,7 +264,7 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                       {renderModalidadVencimiento(cliente)}
                     </td>
 
-                    {/* Acciones (WhatsApp, Perfil, Detalle Lateral) */}
+                    {/* Acciones (WhatsApp, Maps, Perfil, Detalle Lateral) */}
                     <td className="p-5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
                         
@@ -261,6 +281,28 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                           </a>
                         )}
 
+                        {/* ⚡ Botón Google Maps */}
+                        {mapsUrl ? (
+                          <a
+                            href={mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-purple-500/10 hover:bg-purple-500 text-purple-400 hover:text-white border border-purple-500/20 rounded-lg transition-all flex-shrink-0"
+                            title={`Ver ubicación en Google Maps (${cliente.direccion})`}
+                          >
+                            <MapPin size={16} />
+                          </a>
+                        ) : (
+                          <button
+                            disabled
+                            className="p-2 bg-gray-800/40 text-gray-600 border border-gray-800 rounded-lg cursor-not-allowed opacity-40 flex-shrink-0"
+                            title="Sin dirección registrada"
+                          >
+                            <MapPin size={16} />
+                          </button>
+                        )}
+
+                        {/* Botón Ver Perfil */}
                         <button 
                           onClick={() => onVerPerfil(cliente.id)}
                           className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-cyan hover:text-white transition-all flex-shrink-0"
@@ -269,6 +311,7 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
                           <Eye size={18} />
                         </button>
 
+                        {/* Botón Detalle Rápido */}
                         <button 
                           onClick={() => setSelectedCliente(cliente.id)}
                           className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all flex-shrink-0"
