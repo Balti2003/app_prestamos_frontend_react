@@ -1,26 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api';
-import { useAuth } from '../context/AuthContext';
-import { Search, Phone, IdCard, ExternalLink, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Phone, IdCard, ExternalLink, Eye, CalendarClock, MessageCircle } from 'lucide-react';
 import ClienteDetallePanel from './ClienteDetallePanel';
-import EditarClienteModal from './EditarClienteModal';
-import ConfirmModal from './ConfirmModal';
 import Paginador from './Paginador';
 
 const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
-  const { esAdmin } = useAuth();
   const [selectedCliente, setSelectedCliente] = useState(null);
-  const [clienteAEditar, setClienteAEditar] = useState(null);
-  const [modalEditarOpen, setModalEditarOpen] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [pagina, setPagina] = useState(1);
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(true);
-  const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
-  const [clienteAEliminar, setClienteAEliminar] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [mensajeAdvertencia, setMensajeAdvertencia] = useState(null);
 
   const fetchClientes = useCallback(async () => {
     try {
@@ -57,34 +47,103 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
     setPagina(1);
   };
 
-  const handleOpenEditar = (cliente) => {
-    if (!esAdmin) return;
-    setClienteAEditar(cliente);
-    setModalEditarOpen(true);
-  };
+  // Limpia el número y genera el link directo a WhatsApp
+  const getWhatsAppLink = (telefono, nombre) => {
+    if (!telefono) return null;
+    let cleanNumber = telefono.replace(/\D/g, ''); // Deja solo números
 
-  const handleSolicitarEliminacion = (cliente) => {
-    if (!esAdmin) return;
-    setClienteAEliminar(cliente);
-    setModalConfirmOpen(true);
-  };
-
-  const handleConfirmarEliminacion = async () => {
-    if (!clienteAEliminar || !esAdmin) return;
-    try {
-      setDeleting(true);
-      await api.delete(`/clientes/${clienteAEliminar.id}/`);
-      setModalConfirmOpen(false);
-      setClienteAEliminar(null);
-      fetchClientes();
-    } catch (err) {
-      const errorServidor = err.response?.data?.error || "No se puede eliminar este cliente porque posee créditos u operaciones registradas.";
-      setModalConfirmOpen(false);
-      setClienteAEliminar(null);
-      setMensajeAdvertencia(errorServidor);
-    } finally {
-      setDeleting(false);
+    // Si no empieza con código de país (54), lo formateamos para Argentina
+    if (!cleanNumber.startsWith('54')) {
+      // Si empieza con 0 o 15, limpiamos el prefijo común
+      if (cleanNumber.startsWith('0')) cleanNumber = cleanNumber.substring(1);
+      cleanNumber = `549${cleanNumber}`;
     }
+
+    const mensaje = encodeURIComponent(`Hola ${nombre}`);
+    return `https://wa.me/${cleanNumber}?text=${mensaje}`;
+  };
+
+  // Subtexto conciso debajo del nombre
+  const renderEstadoSubtexto = (cliente) => {
+    const estadoData = cliente.estado_financiero || {
+      estado: cliente.tiene_mora ? 'moroso' : 'al_dia',
+      label: cliente.tiene_mora ? 'PAGO ATRASADO' : 'AL DÍA'
+    };
+
+    if (estadoData.estado === 'moroso') {
+      return (
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+          </span>
+          <p className="text-[10px] text-red-400 uppercase font-black tracking-tighter">
+            {estadoData.label}
+          </p>
+        </div>
+      );
+    }
+
+    if (estadoData.estado === 'por_vencer') {
+      return (
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="relative flex h-2 w-2">
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+          </span>
+          <p className="text-[10px] text-amber-400 uppercase font-black tracking-tighter">
+            {estadoData.label}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <span className="relative flex h-2 w-2">
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <p className="text-[10px] text-emerald-400 uppercase font-black tracking-tighter">
+          {estadoData.label}
+        </p>
+      </div>
+    );
+  };
+
+  // Modalidad y Próximo Vencimiento
+  const renderModalidadVencimiento = (cliente) => {
+    const info = cliente.estado_financiero;
+    if (!info || !info.frecuencia || info.estado === 'sin_deuda') {
+      return (
+        <span className="text-gray-600 text-xs italic">
+          Sin préstamos activos
+        </span>
+      );
+    }
+
+    const badgeFrecuencia = {
+      diario: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+      semanal: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+      quincenal: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      mensual: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    }[info.frecuencia.toLowerCase()] || 'bg-gray-800 text-gray-400 border-gray-700';
+
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border tracking-wider ${badgeFrecuencia}`}>
+            {info.frecuencia}
+          </span>
+          <span className="text-[10px] text-gray-400 font-mono">
+            Cuota {info.numero_cuota_pendiente}/{info.cuotas_totales}
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-1.5 text-xs text-gray-200 font-medium">
+          <CalendarClock size={13} className="text-fin-cyan flex-shrink-0" />
+          <span className="capitalize">{info.proximo_vencimiento_texto}</span>
+        </div>
+      </div>
+    );
   };
   
   return (
@@ -121,107 +180,107 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
               <tr className="bg-fin-charcoal-light/50 border-b border-gray-800 text-xs font-bold text-gray-400 uppercase tracking-wider">
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[260px] min-w-[260px]">Cliente</th>
                 <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[140px] min-w-[140px]">Dni</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[180px] min-w-[180px]">Contacto</th>
-                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[240px] min-w-[240px]">Acciones</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[160px] min-w-[160px]">Contacto</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest w-[220px] min-w-[220px]">Plan / Próx. Cobro</th>
+                <th className="p-5 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[140px] min-w-[140px]">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
-              {clientes.map((cliente) => (
-                <tr key={cliente.id} className="hover:bg-fin-violet/5 transition-colors group">
-                  
-                  <td className="p-5 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-fin-charcoal-light flex items-center justify-center border border-gray-700 text-fin-cyan font-bold group-hover:border-fin-cyan/50 transition-colors flex-shrink-0">
-                        {cliente.nombre[0]}{cliente.apellido[0]}
+              {clientes.map((cliente) => {
+                const whatsappUrl = getWhatsAppLink(cliente.telefono, cliente.nombre);
+
+                return (
+                  <tr key={cliente.id} className="hover:bg-fin-violet/5 transition-colors group">
+                    
+                    {/* Titular */}
+                    <td className="p-5 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-fin-charcoal-light flex items-center justify-center border border-gray-700 text-fin-cyan font-bold group-hover:border-fin-cyan/50 transition-colors flex-shrink-0">
+                          {cliente.nombre[0]}{cliente.apellido[0]}
+                        </div>
+                        <div className="truncate">
+                          <button
+                            onClick={() => onVerPerfil(cliente.id)}
+                            className="font-bold text-white capitalize hover:text-fin-violet transition-colors text-left focus:outline-none block"
+                          >
+                            {cliente.nombre} {cliente.apellido}
+                          </button>
+                          {renderEstadoSubtexto(cliente)}
+                        </div>
                       </div>
-                      <div className="truncate">
-                        <button
-                          onClick={() => onVerPerfil(cliente.id)}
-                          className="font-bold text-white capitalize hover:text-fin-violet transition-colors text-left focus:outline-none block"
+                    </td>
+
+                    {/* DNI */}
+                    <td className="p-5 text-sm text-gray-300 font-mono italic whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <IdCard size={14} className="text-gray-600 flex-shrink-0" />
+                        {cliente.dni}
+                      </div>
+                    </td>
+
+                    {/* Contacto (Clickeable directo a WhatsApp) */}
+                    <td className="p-5 text-sm text-gray-300 whitespace-nowrap">
+                      {cliente.telefono ? (
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-gray-300 hover:text-emerald-400 transition-colors group/tel"
+                          title="Abrir chat de WhatsApp"
                         >
-                          {cliente.nombre} {cliente.apellido}
-                        </button>
-                        
-                        {cliente.tiene_mora ? (
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                            </span>
-                            <p className="text-[10px] text-red-400 uppercase font-black tracking-tighter animate-pulse">
-                              PAGO ATRASADO
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-gray-500 uppercase font-black tracking-tighter">
-                            Cliente al día
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="p-5 text-sm text-gray-300 font-mono italic whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <IdCard size={14} className="text-gray-600 flex-shrink-0" />
-                      {cliente.dni}
-                    </div>
-                  </td>
-
-                  <td className="p-5 text-sm text-gray-300 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Phone size={14} className="text-gray-600 flex-shrink-0" />
-                      {cliente.telefono || 'Sin teléfono'}
-                    </div>
-                  </td>
-
-                  <td className="p-5 text-center whitespace-nowrap">
-                    <div className="flex items-center justify-center gap-1.5">
-                      {cliente.tiene_mora && (
-                        <div className="bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-red-500 text-[9px] font-bold flex-shrink-0 mr-1">
-                          MOROSO
+                          <Phone size={14} className="text-gray-600 group-hover/tel:text-emerald-400 transition-colors flex-shrink-0" />
+                          <span className="font-mono text-xs group-hover/tel:underline">{cliente.telefono}</span>
+                        </a>
+                      ) : (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Phone size={14} className="flex-shrink-0" />
+                          <span className="text-xs">Sin teléfono</span>
                         </div>
                       )}
-                      
-                      <button 
-                        onClick={() => onVerPerfil(cliente.id)}
-                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-cyan hover:text-white transition-all flex-shrink-0"
-                        title="Ver Expediente y Comportamiento Histórico"
-                      >
-                        <Eye size={18} />
-                      </button>
+                    </td>
 
-                      <button 
-                        onClick={() => setSelectedCliente(cliente.id)}
-                        className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all flex-shrink-0"
-                        title="Ver Detalle Rápido"
-                      >
-                        <ExternalLink size={18} />
-                      </button>
+                    {/* Modalidad y Próximo Cobro */}
+                    <td className="p-5 whitespace-nowrap">
+                      {renderModalidadVencimiento(cliente)}
+                    </td>
 
-                      {esAdmin && (
+                    {/* Acciones (WhatsApp, Perfil, Detalle Lateral) */}
+                    <td className="p-5 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        
+                        {/* ⚡ Botón WhatsApp */}
+                        {whatsappUrl && (
+                          <a
+                            href={whatsappUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-lg transition-all flex-shrink-0"
+                            title="Enviar mensaje por WhatsApp"
+                          >
+                            <MessageCircle size={16} />
+                          </a>
+                        )}
+
                         <button 
-                          onClick={() => handleOpenEditar(cliente)}
-                          className="p-2 hover:bg-fin-charcoal-light rounded-lg text-amber-400 hover:text-white transition-all flex-shrink-0"
-                          title="Editar Información del Cliente"
+                          onClick={() => onVerPerfil(cliente.id)}
+                          className="p-2 hover:bg-fin-charcoal-light rounded-lg text-fin-cyan hover:text-white transition-all flex-shrink-0"
+                          title="Ver Expediente y Comportamiento Histórico"
                         >
-                          <Edit size={18} />
+                          <Eye size={18} />
                         </button>
-                      )}
 
-                      {esAdmin && (
                         <button 
-                          onClick={() => handleSolicitarEliminacion(cliente)}
-                          className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-200 transition-all flex-shrink-0"
-                          title="Eliminar Cliente"
+                          onClick={() => setSelectedCliente(cliente.id)}
+                          className="p-2 hover:bg-fin-charcoal-light rounded-lg text-violet-400 hover:text-white transition-all flex-shrink-0"
+                          title="Ver Detalle Rápido"
                         >
-                          <Trash2 size={18} />
+                          <ExternalLink size={18} />
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           
@@ -240,40 +299,6 @@ const ListaClientes = ({ onOpenPayment, onVerPerfil }) => {
           onCambiarPagina={(nuevaPagina) => setPagina(nuevaPagina)} 
         />
       </div>
-
-      {esAdmin && (
-        <EditarClienteModal 
-          isOpen={modalEditarOpen}
-          onClose={() => {
-            setModalEditarOpen(false);
-            setClienteAEditar(null);
-          }}
-          cliente={clienteAEditar}
-          onRefresh={fetchClientes}
-        />
-      )}
-
-      {esAdmin && (
-        <ConfirmModal
-          isOpen={modalConfirmOpen}
-          onClose={() => {
-            setModalConfirmOpen(false);
-            setClienteAEliminar(null);
-          }}
-          onConfirm={handleConfirmarEliminacion}
-          loading={deleting}
-          titulo={`¿Eliminar a ${clienteAEliminar?.nombre || ''} ${clienteAEliminar?.apellido || ''}?`}
-          mensaje="Esta acción borrará permanentemente la información del cliente. Solo se procesará si no posee préstamos activos."
-        />
-      )}
-
-      <ConfirmModal
-        isOpen={!!mensajeAdvertencia}
-        onClose={() => setMensajeAdvertencia(null)}
-        titulo="Acción Bloqueada"
-        mensaje={mensajeAdvertencia}
-        isAlert={true}
-      />
 
     </div>
   );

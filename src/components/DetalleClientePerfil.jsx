@@ -11,7 +11,8 @@ import {
   ArrowRightLeft,
   CreditCard,
   Edit,
-  Trash2
+  Trash2,
+  MessageCircle
 } from 'lucide-react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -67,6 +68,20 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
     setLoading(true);
     fetchClientePerfil();
   }, [fetchClientePerfil]);
+
+  // Limpia el número y genera el link directo a WhatsApp
+  const getWhatsAppLink = (telefono, nombre) => {
+    if (!telefono) return null;
+    let cleanNumber = telefono.replace(/\D/g, '');
+
+    if (!cleanNumber.startsWith('54')) {
+      if (cleanNumber.startsWith('0')) cleanNumber = cleanNumber.substring(1);
+      cleanNumber = `549${cleanNumber}`;
+    }
+
+    const mensaje = encodeURIComponent(`Hola ${nombre}`);
+    return `https://wa.me/${cleanNumber}?text=${mensaje}`;
+  };
 
   const handleDescargarDesembolso = async (prestamoId) => {
     if (!prestamoId) return;
@@ -137,6 +152,53 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
     );
   };
 
+  const renderEstadoHeader = () => {
+    const tieneMoraActiva = cliente?.tiene_mora || cliente?.prestamos_activos?.some(p => p.estado === 'mora');
+    
+    const estadoData = cliente?.estado_financiero || {
+      estado: tieneMoraActiva ? 'moroso' : 'al_dia',
+      label: tieneMoraActiva ? 'PAGO ATRASADO' : 'AL DÍA'
+    };
+
+    if (estadoData.estado === 'moroso' || tieneMoraActiva) {
+      return (
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+          </span>
+          <span className="text-xs text-red-400 font-black uppercase tracking-wider">
+            {estadoData.label}
+          </span>
+        </div>
+      );
+    }
+
+    if (estadoData.estado === 'por_vencer') {
+      return (
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+          </span>
+          <span className="text-xs text-amber-400 font-black uppercase tracking-wider">
+            {estadoData.label}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-1.5 mt-1">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </span>
+        <span className="text-xs text-emerald-400 font-black uppercase tracking-wider">
+          {estadoData.label || 'AL DÍA'}
+        </span>
+      </div>
+    );
+  };
+
   const handleConfirmarEliminacion = async () => {
     if (!esAdmin) return;
     try {
@@ -170,6 +232,8 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
   }
 
   const { metricas_comportamiento, historial_pagos, prestamos_activos } = cliente;
+  const tieneMoraActiva = cliente.tiene_mora || cliente.estado_financiero?.estado === 'moroso' || prestamos_activos?.some(p => p.estado === 'mora');
+  const whatsappUrl = getWhatsAppLink(cliente.telefono, cliente.nombre);
 
   return (
     <div className="space-y-6">
@@ -185,7 +249,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
       {/* --- ENCABEZADO DE EXPEDIENTE --- */}
       <div className="bg-fin-charcoal border border-gray-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-fin-violet/10 border border-fin-violet/30 flex items-center justify-center text-fin-violet font-black text-xl uppercase">
+          <div className="w-14 h-14 rounded-2xl bg-fin-violet/10 border border-fin-violet/30 flex items-center justify-center text-fin-violet font-black text-xl uppercase flex-shrink-0">
             {cliente.nombre?.[0]}{cliente.apellido?.[0]}
           </div>
           <div>
@@ -193,7 +257,8 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
               <h2 className="text-2xl font-black tracking-tight text-white uppercase italic">
                 {cliente.nombre} {cliente.apellido}
               </h2>
-              {metricas_comportamiento?.tasa_puntualidad_porcentaje < 50 ? (
+              
+              {(tieneMoraActiva || metricas_comportamiento?.tasa_puntualidad_porcentaje < 70) ? (
                 <span className="bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full animate-pulse">
                   Riesgo Alto
                 </span>
@@ -203,7 +268,10 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
                 </span>
               )}
             </div>
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mt-0.5">
+
+            {renderEstadoHeader()}
+
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mt-1">
               DNI: <span className="font-mono text-gray-300 italic">{cliente.dni}</span>
             </p>
           </div>
@@ -211,10 +279,33 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
 
         {/* Acciones e Info Rápida */}
         <div className="flex flex-wrap items-center gap-4 text-xs border-t md:border-t-0 border-gray-800 pt-4 md:pt-0">
-          <div className="bg-gray-900/40 border border-gray-800/80 px-4 py-2.5 rounded-xl">
-            <p className="text-gray-500 font-bold uppercase text-[9px] tracking-widest">Teléfono Celular</p>
-            <p className="text-gray-200 font-medium mt-0.5">{cliente.telefono || 'Sin teléfono'}</p>
-          </div>
+          
+          {/* ⚡ Tarjeta de Teléfono con acceso directo a WhatsApp */}
+          {whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-gray-900/40 hover:bg-emerald-500/10 border border-gray-800/80 hover:border-emerald-500/30 px-4 py-2.5 rounded-xl transition-all group"
+              title="Abrir chat en WhatsApp"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-gray-500 group-hover:text-emerald-400 font-bold uppercase text-[9px] tracking-widest transition-colors">
+                  Teléfono Celular
+                </p>
+                <MessageCircle size={12} className="text-gray-600 group-hover:text-emerald-400 transition-colors" />
+              </div>
+              <p className="text-gray-200 group-hover:text-emerald-300 font-mono font-medium mt-0.5 transition-colors flex items-center gap-1">
+                {cliente.telefono}
+              </p>
+            </a>
+          ) : (
+            <div className="bg-gray-900/40 border border-gray-800/80 px-4 py-2.5 rounded-xl">
+              <p className="text-gray-500 font-bold uppercase text-[9px] tracking-widest">Teléfono Celular</p>
+              <p className="text-gray-500 font-medium mt-0.5">Sin teléfono</p>
+            </div>
+          )}
+
           <div className="bg-gray-900/40 border border-gray-800/80 px-4 py-2.5 rounded-xl">
             <p className="text-gray-500 font-bold uppercase text-[9px] tracking-widest">Dirección Registrada</p>
             <p className="text-gray-200 font-medium mt-0.5">{cliente.direccion || 'Sin dirección'}</p>
@@ -261,7 +352,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </div>
         </div>
 
-        {/* ADMIN VE RENTABILIDAD, OPERADOR VE PAGOS REALIZADOS */}
         {esAdmin ? (
           <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
             <div className="flex justify-between items-start">
