@@ -19,7 +19,7 @@ import NuevoMovimientoModal from './NuevoMovimientoModal';
 import Paginador from './Paginador';
 
 const HistorialMovimientos = () => {
-  const { esAdmin } = useAuth();
+  const { tienePermiso } = useAuth();
   const [movimientos, setMovimientos] = useState([]);
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [pagina, setPagina] = useState(1);
@@ -31,7 +31,7 @@ const HistorialMovimientos = () => {
   const [fechaHasta, setFechaHasta] = useState('');
 
   const fetchMovimientos = useCallback(async () => {
-    if (!esAdmin) {
+    if (!tienePermiso('puede_ver_caja')) {
       setLoading(false);
       return;
     }
@@ -59,7 +59,7 @@ const HistorialMovimientos = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagina, fechaDesde, fechaHasta, esAdmin]);
+  }, [pagina, fechaDesde, fechaHasta, tienePermiso]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -131,7 +131,6 @@ const HistorialMovimientos = () => {
       );
     }
 
-    // Para 'otro' o cualquier descripción personalizada (ej: 'Cheque n° 4567')
     return (
       <span 
         className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 w-max mx-auto max-w-[180px] truncate"
@@ -143,16 +142,16 @@ const HistorialMovimientos = () => {
     );
   };
 
-  if (!esAdmin) {
+  if (!tienePermiso('puede_ver_caja')) {
     return (
       <div className="flex flex-col items-center justify-center p-12 my-6 bg-fin-charcoal border border-gray-800 rounded-3xl text-center space-y-4 animate-in fade-in duration-300">
         <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl shadow-lg">
           <ShieldAlert size={36} />
         </div>
         <div>
-          <h3 className="text-xl font-black text-white uppercase italic tracking-tight">Acceso Reservado a Administración</h3>
+          <h3 className="text-xl font-black text-white uppercase italic tracking-tight">Acceso No Autorizado</h3>
           <p className="text-gray-400 text-xs mt-1 max-w-md leading-relaxed">
-            El libro diario de caja y los movimientos globales de fondos están restringidos únicamente a usuarios con perfil Administrador.
+            Tu cuenta de operador no posee permisos habilitados para auditar el libro diario de caja y movimientos globales.
           </p>
         </div>
       </div>

@@ -23,7 +23,7 @@ import EditarClienteModal from './EditarClienteModal';
 import ConfirmModal from './ConfirmModal';
 
 export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarRecibo }) {
-  const { esAdmin } = useAuth();
+  const { tienePermiso } = useAuth();
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('activos');
@@ -210,7 +210,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
   };
 
   const handleConfirmarEliminacion = async () => {
-    if (!esAdmin) return;
+    if (!tienePermiso('puede_eliminar_cliente')) return;
     try {
       setDeleting(true);
       await api.delete(`/clientes/${cliente.id}/`);
@@ -317,7 +317,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             </div>
           )}
 
-          {/* ⚡ Tarjeta de Dirección con acceso directo a Google Maps */}
+          {/* Tarjeta de Dirección con acceso directo a Google Maps */}
           {mapsUrl ? (
             <a
               href={mapsUrl}
@@ -343,24 +343,26 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             </div>
           )}
 
-          {/* Botones de Acción (SOLO ADMINISTRADOR) */}
-          {esAdmin && (
-            <div className="flex gap-2">
+          {/* ⚡ Botones de Acción según permisos del usuario */}
+          <div className="flex gap-2">
+            {tienePermiso('puede_editar_cliente') && (
               <button
                 onClick={() => setModalEditarOpen(true)}
                 className="p-2.5 bg-gray-800 text-gray-300 hover:text-white border border-gray-700 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
               >
                 <Edit size={14} /> Editar
               </button>
-              
+            )}
+            
+            {tienePermiso('puede_eliminar_cliente') && (
               <button
                 onClick={() => setModalConfirmOpen(true)}
                 className="p-2.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
               >
                 <Trash2 size={14} /> Eliminar
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -384,7 +386,8 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </div>
         </div>
 
-        {esAdmin ? (
+        {/* Si tiene permiso para ver métricas / es Admin, ve Rentabilidad Total */}
+        {tienePermiso('puede_ver_metricas') ? (
           <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
             <div className="flex justify-between items-start">
               <div>
@@ -552,8 +555,8 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         )}
       </div>
 
-      {/* MODAL DE EDICIÓN DEL CLIENTE (SOLO ADMINISTRADOR) */}
-      {esAdmin && (
+      {/* MODAL DE EDICIÓN DEL CLIENTE */}
+      {tienePermiso('puede_editar_cliente') && (
         <EditarClienteModal 
           isOpen={modalEditarOpen}
           onClose={() => setModalEditarOpen(false)}
@@ -562,8 +565,8 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         />
       )}
 
-      {/* MODAL DE CONFIRMACIÓN DE BORRADO (SOLO ADMINISTRADOR) */}
-      {esAdmin && (
+      {/* MODAL DE CONFIRMACIÓN DE BORRADO */}
+      {tienePermiso('puede_eliminar_cliente') && (
         <ConfirmModal
           isOpen={modalConfirmOpen}
           onClose={() => setModalConfirmOpen(false)}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import Brand from './Brand';
@@ -19,7 +19,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard = ({ onLogout }) => {
-  const { user, esAdmin } = useAuth();
+  const { user, esAdmin, tienePermiso } = useAuth();
   const [activeTab, setActiveTab] = useState('resumen');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,6 @@ const Dashboard = ({ onLogout }) => {
   const [isAperturaModalOpen, setIsAperturaModalOpen] = useState(false);
   const [isCierreModalOpen, setIsCierreModalOpen] = useState(false);
 
-  // Datos para el gráfico (puedes reemplazarlos luego con datos del backend)
   const chartData = [
     { name: 'Ene', ingresos: 4000 },
     { name: 'Feb', ingresos: 3000 },
@@ -42,10 +41,11 @@ const Dashboard = ({ onLogout }) => {
     { name: 'Jun', ingresos: 5500 },
   ];
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const response = await api.get('/dashboard/resumen/');
       setData(response.data);
+      setError(null);
     } catch (err) {
       console.error("Error al obtener datos:", err);
       if (err.response && err.response.status === 401) {
@@ -56,12 +56,11 @@ const Dashboard = ({ onLogout }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [onLogout]);
 
-  // Función para consultar el estado de la caja de hoy en el backend
-  const chequearEstadoCaja = async () => {
+  const chequearEstadoCaja = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const res = await fetch('http://localhost:8000/api/caja-diaria/estado_actual/', {
         method: 'GET',
         headers: {
@@ -70,25 +69,22 @@ const Dashboard = ({ onLogout }) => {
         }
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.caja_abierta) {
-          setCajaInfo({ cargando: false, abierta: true, datos: data });
-        } else {
-          setCajaInfo({ cargando: false, abierta: false, datos: data });
-        }
+        const resData = await res.json();
+        setCajaInfo({ cargando: false, abierta: !!resData.caja_abierta, datos: resData });
+      } else {
+        setCajaInfo({ cargando: false, abierta: false, datos: null });
       }
-    } catch (error) {
-      console.error("Error al chequear el estado de la caja:", error);
+    } catch (err) {
+      console.error("Error al chequear el estado de la caja:", err);
       setCajaInfo({ cargando: false, abierta: false, datos: null });
     }
-  };
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDashboardData();
     chequearEstadoCaja();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, fetchDashboardData, chequearEstadoCaja]);
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-fin-dark-bg text-white">
@@ -177,9 +173,10 @@ const Dashboard = ({ onLogout }) => {
     }
   };
 
-  const { metricas_financieras, estado_cartera, operativo_hoy } = data;
+  const metricas_financieras = data?.metricas_financieras;
+  const estado_cartera = data?.estado_cartera;
+  const operativo_hoy = data?.operativo_hoy;
 
-  // Calculamos las iniciales del usuario para el avatar
   const obtenerIniciales = () => {
     if (!user) return 'US';
     if (user.first_name && user.last_name) {
@@ -212,10 +209,8 @@ const Dashboard = ({ onLogout }) => {
       {/* HEADER RESPONSIVO */}
       <header className="p-4 lg:p-6 lg:px-10 flex flex-col lg:flex-row justify-between items-center gap-4 border-b border-gray-800 bg-fin-charcoal/30 sticky top-0 z-50 backdrop-blur-md w-full">
         
-        {/* SECCIÓN IZQUIERDA: LOGO Y NAVEGACIÓN CENTRAL */}
+        {/* SECCIÓN IZQUIERDA */}
         <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-8 w-full lg:w-auto justify-between sm:justify-start">
-            
-            {/* Brand / Logo */}
             <div className="flex flex-col">
                 <Brand 
                   size="md"
@@ -226,7 +221,7 @@ const Dashboard = ({ onLogout }) => {
                 />
             </div>
 
-            {/* NAVEGACIÓN DE SECCIONES */}
+            {/* NAVEGACIÓN */}
             <nav className="flex gap-1 bg-fin-charcoal/50 p-1 rounded-xl border border-gray-800 w-full sm:w-auto justify-center">
               <button 
                 onClick={() => { setSelectedClienteId(null); setActiveTab('resumen'); }}
@@ -246,18 +241,19 @@ const Dashboard = ({ onLogout }) => {
               >
                   CLIENTES
               </button>
-              <button 
-                onClick={() => { setSelectedClienteId(null); setActiveTab('movimientos'); }}
-                className={`flex-1 sm:flex-initial text-center px-3 py-2 rounded-lg text-[11px] sm:text-xs font-black transition-all ${activeTab === 'movimientos' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
-              >
-                  MOVIMIENTOS
-              </button>
+              {tienePermiso('puede_ver_caja') && (
+                <button 
+                  onClick={() => { setSelectedClienteId(null); setActiveTab('movimientos'); }}
+                  className={`flex-1 sm:flex-initial text-center px-3 py-2 rounded-lg text-[11px] sm:text-xs font-black transition-all ${activeTab === 'movimientos' ? 'bg-fin-violet text-white shadow-neon-violet' : 'text-gray-500 hover:text-white'}`}
+                >
+                    MOVIMIENTOS
+                </button>
+              )}
             </nav>
         </div>
 
-        {/* SECCIÓN DERECHA: SESIÓN, LOGOUT Y AVATAR */}
+        {/* SECCIÓN DERECHA */}
         <div className="flex items-center justify-between sm:justify-end w-full lg:w-auto gap-4 sm:gap-6 border-t border-gray-800/40 lg:border-t-0 pt-3 lg:pt-0">
-            
             <div className="hidden sm:flex flex-col items-end">
                 <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">
                   {esAdmin ? 'Administrador' : 'Operador'}
@@ -268,7 +264,6 @@ const Dashboard = ({ onLogout }) => {
             </div>
 
             <div className="flex items-center gap-4 ml-auto sm:ml-0">
-                {/* Botón Cerrar Sesión */}
                 <div className="flex gap-2">
                     <button 
                         onClick={onLogout}
@@ -279,7 +274,6 @@ const Dashboard = ({ onLogout }) => {
                     </button>
                 </div>
 
-                {/* Avatar dinámico con las iniciales del usuario */}
                 <div className="relative group">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-fin-violet to-fin-cyan flex items-center justify-center font-black text-white shadow-neon-cyan active:scale-95 transition-transform cursor-pointer">
                         <button 
@@ -307,11 +301,9 @@ const Dashboard = ({ onLogout }) => {
         
         {activeTab === 'resumen' && (
           <>
-            {/* --- ALERTA Y CONTROL DE CAJA DIARIA */}
             {cajaInfo.cargando ? (
               <div className="mb-6 p-4 bg-fin-charcoal/40 border border-gray-800 rounded-2xl animate-pulse flex h-16 w-full" />
             ) : !cajaInfo.abierta ? (
-              /* CAJA CERRADA */
               <div className="mb-6 p-4 sm:p-5 bg-red-950/20 border border-red-900/40 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-red-500/10 rounded-xl text-red-500 border border-red-500/20">
@@ -327,7 +319,6 @@ const Dashboard = ({ onLogout }) => {
                   </div>
                 </div>
 
-                {/* SOLO EL ADMIN PUEDE ABRIR LA CAJA */}
                 {esAdmin ? (
                   <button
                     onClick={() => setIsAperturaModalOpen(true)}
@@ -342,7 +333,6 @@ const Dashboard = ({ onLogout }) => {
                 )}
               </div>
             ) : (
-              /* CAJA ABIERTA */
               <div className="mb-6 p-4 sm:p-5 bg-green-950/10 border border-green-900/20 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-green-500/10 rounded-xl text-green-400 border border-green-500/10">
@@ -358,7 +348,6 @@ const Dashboard = ({ onLogout }) => {
                   </div>
                 </div>
 
-                {/* SOLO EL ADMIN PUEDE REALIZAR EL CIERRE Y ARQUEO */}
                 {esAdmin && (
                   <button
                     onClick={() => setIsCierreModalOpen(true)}
@@ -375,43 +364,47 @@ const Dashboard = ({ onLogout }) => {
                 <p className="text-fin-gray-text text-sm mt-1">Estado de la cartera de préstamos al {new Date().toLocaleDateString()}.</p>
             </div>
 
-            {/* --- ACCIONES RÁPIDAS (DESHABILITADAS SI LA CAJA ESTÁ CERRADA) --- */}
+            {/* Acciones Rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-              <QuickActionBtn 
-                icon={<UserPlus />} 
-                title="Nuevo Cliente" 
-                color="cyan" 
-                disabled={!cajaInfo.abierta}
-                onClick={() => setIsModalOpen(true)} 
-              />
-              <QuickActionBtn 
-                icon={<FilePlus />} 
-                title="Crear Préstamo" 
-                color="violet" 
-                disabled={!cajaInfo.abierta}
-                onClick={() => setIsPrestamoModalOpen(true)} 
-              />
-              <QuickActionBtn 
-                icon={<ReceiptText />} 
-                title="Registrar Pago" 
-                color="gray" 
-                disabled={!cajaInfo.abierta}
-                onClick={() => setIsPagoModalOpen(true)} 
-              />
+              {tienePermiso('puede_crear_cliente') && (
+                <QuickActionBtn 
+                  icon={<UserPlus />} 
+                  title="Nuevo Cliente" 
+                  color="cyan" 
+                  disabled={!cajaInfo.abierta}
+                  onClick={() => setIsModalOpen(true)} 
+                />
+              )}
+              {tienePermiso('puede_crear_prestamo') && (
+                <QuickActionBtn 
+                  icon={<FilePlus />} 
+                  title="Crear Préstamo" 
+                  color="violet" 
+                  disabled={!cajaInfo.abierta}
+                  onClick={() => setIsPrestamoModalOpen(true)} 
+                />
+              )}
+              {tienePermiso('puede_cobrar_cuota') && (
+                <QuickActionBtn 
+                  icon={<ReceiptText />} 
+                  title="Registrar Pago" 
+                  color="gray" 
+                  disabled={!cajaInfo.abierta}
+                  onClick={() => setIsPagoModalOpen(true)} 
+                />
+              )}
             </div>
 
-            {/* Grid de Tarjetas Principales */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <StatCard 
-                title="SALDO EN CAJA" 
-                value={`$${metricas_financieras?.saldo_caja_disponible?.toLocaleString() ?? 0}`}
-                icon={<DollarSign />}
-                color="cyan"
-                subtitle="Dinero líquido listo para prestar"
-              />
-
-              {/* Si es Admin muestra Ganancia Real, si es Operador muestra Cobros Esperados Hoy */}
-              {esAdmin ? (
+            {/* Tarjetas Principales según Permisos */}
+            {tienePermiso('puede_ver_metricas') ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <StatCard 
+                  title="SALDO EN CAJA" 
+                  value={`$${metricas_financieras?.saldo_caja_disponible?.toLocaleString() ?? 0}`}
+                  icon={<DollarSign />}
+                  color="cyan"
+                  subtitle="Dinero líquido listo para prestar"
+                />
                 <StatCard 
                   title="GANANCIA REAL" 
                   value={`$${metricas_financieras?.rentabilidad_acumulada?.toLocaleString() ?? 0}`}
@@ -419,78 +412,93 @@ const Dashboard = ({ onLogout }) => {
                   color="violet"
                   subtitle="Suma de intereses y mora cobrados"
                 />
-              ) : (
                 <StatCard 
-                  title="COBROS HOY" 
+                  title="CAPITAL PRESTADO" 
+                  value={`$${metricas_financieras?.capital_en_calle?.toLocaleString() ?? 0}`}
+                  icon={<ArrowUpRight />}
+                  color="gray"
+                  subtitle="Monto base pendiente de cobro"
+                />
+                <StatCard 
+                  title="% MORA ACTIVA" 
+                  value={`${estado_cartera?.tasa_mora_porcentaje ?? 0}%`}
+                  icon={<AlertCircle />}
+                  color="red"
+                  subtitle={`${estado_cartera?.prestamos_en_mora ?? 0} préstamos vencidos`}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <StatCard 
+                  title="COBROS ESPERADOS HOY" 
                   value={`$${operativo_hoy?.cobros_pendientes_hoy?.toLocaleString() ?? 0}`}
                   icon={<ReceiptText />}
                   color="violet"
-                  subtitle="Cobros agendados para la fecha"
+                  subtitle="Cuotas a cobrar en la jornada"
                 />
+                <StatCard 
+                  title="PRÉSTAMOS ACTIVOS" 
+                  value={`${estado_cartera?.prestamos_activos ?? 0}`}
+                  icon={<FileText />}
+                  color="cyan"
+                  subtitle="Contratos vigentes a gestionar"
+                />
+                <StatCard 
+                  title="CUENTAS EN MORA" 
+                  value={`${estado_cartera?.prestamos_en_mora ?? 0}`}
+                  icon={<AlertCircle />}
+                  color="red"
+                  subtitle={`${estado_cartera?.tasa_mora_porcentaje ?? 0}% de mora en cartera`}
+                />
+              </div>
+            )}
+
+            {/* Gráfico y Métricas */}
+            <div className={`grid grid-cols-1 ${tienePermiso('puede_ver_metricas') ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-8`}>
+              
+              {/* Gráfico de Tendencias: Solo si tiene permiso de métricas */}
+              {tienePermiso('puede_ver_metricas') && (
+                <div className="lg:col-span-2 bg-fin-charcoal p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col group transition hover:border-fin-violet/40">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <TrendingUp className="text-fin-cyan" size={20} /> Tendencias de Crecimiento
+                        </h3>
+                        <div className="flex gap-2 text-sm text-gray-500">
+                            <span className="text-fin-cyan font-semibold">Historial</span>
+                            <span>Mensual</span>
+                        </div>
+                    </div>
+                    <div className="h-72 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData}>
+                          <defs>
+                            <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.3}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                          <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#16181f', border: '1px solid #374151', borderRadius: '12px' }}
+                            itemStyle={{ color: '#22d3ee' }}
+                          />
+                          <Area type="monotone" dataKey="ingresos" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorIngresos)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                </div>
               )}
 
-              <StatCard 
-                title="CAPITAL PRESTADO" 
-                value={`$${metricas_financieras?.capital_en_calle?.toLocaleString() ?? 0}`}
-                icon={<ArrowUpRight />}
-                color="gray"
-                subtitle="Monto base pendiente de cobro"
-              />
-              <StatCard 
-                title="% MORA ACTIVA" 
-                value={`${estado_cartera?.tasa_mora_porcentaje ?? 0}%`}
-                icon={<AlertCircle />}
-                color="red"
-                subtitle={`${estado_cartera?.prestamos_en_mora ?? 0} préstamos vencidos`}
-              />
-            </div>
-
-            {/* Grid Secundario */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
-              {/* Columna Izquierda: Gráfico de Tendencias */}
-              <div className="lg:col-span-2 bg-fin-charcoal p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col group transition hover:border-fin-violet/40">
-                  <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <TrendingUp className="text-fin-cyan" size={20} /> Tendencias de Crecimiento
-                      </h3>
-                      <div className="flex gap-2 text-sm text-gray-500">
-                          <span className="text-fin-cyan font-semibold">Historial</span>
-                          <span>Mensual</span>
-                      </div>
-                  </div>
-                  <div className="h-72 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#16181f', border: '1px solid #374151', borderRadius: '12px' }}
-                          itemStyle={{ color: '#22d3ee' }}
-                        />
-                        <Area type="monotone" dataKey="ingresos" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorIngresos)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-              </div>
-
-              {/* Columna Derecha: Métricas de Cartera Operativa */}
+              {/* Columna Derecha: Métricas Operativas */}
               <div className="bg-fin-charcoal-light p-8 rounded-3xl shadow-fin-card border border-gray-800 flex flex-col transition hover:border-fin-violet/40">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                   <CalendarDays className="text-fin-violet h-5 w-5" />
-                  Métricas de Cartera
+                  Métricas Operativas
                 </h3>
                 
                 <div className="space-y-4 flex-grow">
-                  
-                  {/* Cobros esperados hoy */}
                   <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40 flex items-center justify-between">
                     <div>
                       <span className="text-fin-gray-text text-[10px] uppercase font-bold tracking-widest block">Cobros esperados hoy</span>
@@ -501,53 +509,57 @@ const Dashboard = ({ onLogout }) => {
                     </div>
                   </div>
 
-                  {/* Préstamos Activos & Promedio Otorgado */}
                   <div className="grid grid-cols-2 gap-3">
-                    
-                    {/* Préstamos Activos */}
                     <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-violet/40">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-fin-gray-text text-[9px] uppercase font-bold tracking-wider">Préstamos Activos</span>
                         <FileText size={14} className="text-fin-violet" />
                       </div>
                       <p className="font-black text-xl text-white">{estado_cartera?.prestamos_activos ?? 0}</p>
-                      <span className="text-[9px] text-gray-500 font-bold">Vigentes en cartera</span>
+                      <span className="text-[9px] text-gray-500 font-bold">Vigentes</span>
                     </div>
 
-                    {/* Promedio Otorgado */}
-                    <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-fin-gray-text text-[9px] uppercase font-bold tracking-wider">Promedio Otorgado</span>
-                        <Calculator size={14} className="text-fin-cyan" />
+                    {tienePermiso('puede_ver_metricas') ? (
+                      <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-fin-gray-text text-[9px] uppercase font-bold tracking-wider">Promedio Otorgado</span>
+                          <Calculator size={14} className="text-fin-cyan" />
+                        </div>
+                        <p className="font-black text-xl text-white">${Math.round(estado_cartera?.promedio_prestamo ?? 0).toLocaleString()}</p>
+                        <span className="text-[9px] text-gray-500 font-bold">Por contrato</span>
                       </div>
-                      <p className="font-black text-xl text-white">${Math.round(estado_cartera?.promedio_prestamo ?? 0).toLocaleString()}</p>
-                      <span className="text-[9px] text-gray-500 font-bold">Por contrato</span>
-                    </div>
-
+                    ) : (
+                      <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 transition group hover:border-fin-cyan/40">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-fin-gray-text text-[9px] uppercase font-bold tracking-wider">Total Clientes</span>
+                          <Users size={14} className="text-fin-cyan" />
+                        </div>
+                        <p className="font-black text-xl text-white">{operativo_hoy?.clientes_total ?? 0}</p>
+                        <span className="text-[9px] text-gray-500 font-bold">Registrados</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Cartera total clientes */}
-                  <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 flex items-center justify-between">
-                    <div>
-                      <span className="text-fin-gray-text text-[10px] uppercase font-bold tracking-widest block">Cartera total clientes</span>
-                      <p className="font-black text-2xl text-white mt-0.5">{operativo_hoy?.clientes_total ?? 0}</p>
+                  {tienePermiso('puede_ver_metricas') && (
+                    <div className="p-4 bg-fin-charcoal rounded-2xl border border-gray-700 flex items-center justify-between">
+                      <div>
+                        <span className="text-fin-gray-text text-[10px] uppercase font-bold tracking-widest block">Cartera total clientes</span>
+                        <p className="font-black text-2xl text-white mt-0.5">{operativo_hoy?.clientes_total ?? 0}</p>
+                      </div>
+                      <div className="p-2.5 bg-gray-800 text-gray-400 rounded-xl border border-gray-700">
+                        <Users size={18} />
+                      </div>
                     </div>
-                    <div className="p-2.5 bg-gray-800 text-gray-400 rounded-xl border border-gray-700">
-                      <Users size={18} />
-                    </div>
-                  </div>
+                  )}
 
-                  {/* Alerta Crítica */}
                   <div className="p-4 bg-red-950/20 border border-red-900/50 rounded-2xl">
-                    <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Alerta Crítica</p>
+                    <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-1 italic">Alerta de Mora</p>
                     <p className="text-gray-300 text-xs leading-relaxed">
                       Hay <span className="font-bold text-red-400">{estado_cartera?.prestamos_en_mora ?? 0}</span> cuentas que requieren gestión de cobranza inmediata.
                     </p>
                   </div>
-
                 </div>
               </div>
-
             </div>
           </>
         )}
@@ -561,12 +573,10 @@ const Dashboard = ({ onLogout }) => {
             />
           ) : (
             <div className="w-full overflow-hidden">
-              <React.Suspense fallback={<div className="h-10 w-full animate-pulse bg-fin-charcoal" />}>
-                <ListaClientes 
-                  onOpenPayment={abrirModalPagoConCliente} 
-                  onVerPerfil={(id) => setSelectedClienteId(id)}
-                />
-              </React.Suspense>
+              <ListaClientes 
+                onOpenPayment={abrirModalPagoConCliente} 
+                onVerPerfil={(id) => setSelectedClienteId(id)}
+              />
             </div>
           )
         )}
@@ -593,7 +603,7 @@ const Dashboard = ({ onLogout }) => {
         )}
       </main>
 
-      {/* --- INTEGRACIÓN DE MODALES DE CAJA DIARIA */}
+      {/* Modales de Caja */}
       <AperturaCajaModal 
         isOpen={isAperturaModalOpen}
         onClose={() => setIsAperturaModalOpen(false)}

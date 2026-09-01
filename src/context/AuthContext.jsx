@@ -10,10 +10,9 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Al arrancar, podemos verificar con la API quién es el usuario actual
   useEffect(() => {
     const checkUser = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       if (token) {
         try {
           const res = await api.get('/me/');
@@ -21,7 +20,6 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem('user', JSON.stringify(res.data));
         } catch (err) {
           console.error("Error al obtener sesión:", err);
-          // Si el token expiró o es inválido, cerramos sesión
           // eslint-disable-next-line react-hooks/immutability
           logout();
         }
@@ -39,15 +37,22 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
   };
 
-  // Flag rápido para evaluar roles
+  // Roles y permisos
   const esAdmin = user?.es_admin === true;
 
+  // ⚡ Helper universal para verificar permisos en cualquier componente
+  const tienePermiso = (nombrePermiso) => {
+    if (esAdmin) return true; // El administrador siempre tiene todos los permisos
+    return user?.permisos?.[nombrePermiso] === true;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, esAdmin, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, esAdmin, tienePermiso, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

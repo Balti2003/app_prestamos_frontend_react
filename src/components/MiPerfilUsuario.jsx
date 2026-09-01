@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Shield, KeyRound, Save, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Shield, KeyRound, Save, ArrowLeft, CheckCircle2, AlertCircle, UserPlus, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import CrearOperadorModal from './CrearOperadorModal';
 
 export default function MiPerfilUsuario({ onVolverALaHome }) {
   const { user, esAdmin } = useAuth();
@@ -10,9 +11,15 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
   const [passwordNueva, setPasswordNueva] = useState('');
   const [passwordConfirmar, setPasswordConfirmar] = useState('');
   
-  // Estados de control para la interfaz
-  const [status, setStatus] = useState({ type: null, message: '' });
-  const [loading, setLoading] = useState(false);
+  // Estado de feedback exclusivo para contraseña
+  const [statusPassword, setStatusPassword] = useState({ type: null, message: '' });
+  const [loadingPassword, setLoadingPassword] = useState(false);
+
+  // ⚡ Estado de feedback exclusivo para creación de operador
+  const [statusOperador, setStatusOperador] = useState(null);
+
+  // Modal para creación de operador
+  const [modalOperadorOpen, setModalOperadorOpen] = useState(false);
 
   // Helper para generar iniciales
   const obtenerIniciales = () => {
@@ -25,18 +32,18 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
 
   const handleCambiarPassword = (e) => {
     e.preventDefault();
-    setStatus({ type: null, message: '' });
+    setStatusPassword({ type: null, message: '' });
 
     if (passwordNueva !== passwordConfirmar) {
-      setStatus({ type: 'error', message: 'La nueva contraseña y la confirmación no coinciden.' });
+      setStatusPassword({ type: 'error', message: 'La nueva contraseña y la confirmación no coinciden.' });
       return;
     }
     if (passwordNueva.length < 6) {
-      setStatus({ type: 'error', message: 'La contraseña debe tener al menos 6 caracteres.' });
+      setStatusPassword({ type: 'error', message: 'La contraseña debe tener al menos 6 caracteres.' });
       return;
     }
 
-    setLoading(true);
+    setLoadingPassword(true);
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
     fetch('http://localhost:8000/api/usuario/cambiar-password/', {
@@ -56,15 +63,22 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
         return data;
       })
       .then(() => {
-        setStatus({ type: 'success', message: '¡Contraseña actualizada con éxito!' });
+        setStatusPassword({ type: 'success', message: '¡Contraseña actualizada con éxito!' });
         setPasswordActual('');
         setPasswordNueva('');
         setPasswordConfirmar('');
       })
       .catch(err => {
-        setStatus({ type: 'error', message: err.message });
+        setStatusPassword({ type: 'error', message: err.message });
       })
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingPassword(false));
+  };
+
+  const handleOperadorCreadoExito = () => {
+    setStatusOperador('¡Nuevo operador creado y configurado con éxito!');
+    setTimeout(() => {
+      setStatusOperador(null);
+    }, 4000);
   };
 
   return (
@@ -80,7 +94,7 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* TARJETA DE INFORMACIÓN DEL OPERADOR */}
+        {/* TARJETA DE INFORMACIÓN DEL OPERADOR / ADMIN */}
         <div className="bg-fin-charcoal border border-gray-800 rounded-3xl p-6 flex flex-col items-center text-center space-y-4 h-fit">
           <div className="w-20 h-20 rounded-2xl bg-fin-violet/10 border border-fin-violet/30 flex items-center justify-center text-fin-violet font-black text-3xl shadow-neon-violet/5">
             {obtenerIniciales()}
@@ -101,77 +115,127 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
           </div>
         </div>
 
-        {/* PANEL DE ACCIONES: CONFIGURACIÓN DE SEGURIDAD */}
-        <div className="lg:col-span-2 bg-fin-charcoal border border-gray-800 rounded-3xl p-6 space-y-6">
-          <div>
-            <h2 className="text-xl font-black tracking-tight text-white uppercase italic flex items-center gap-2">
-              <KeyRound size={18} className="text-fin-violet" /> Seguridad de la Cuenta
-            </h2>
-            <p className="text-fin-gray-text text-xs mt-0.5">Actualizá tus credenciales de acceso para proteger el sistema.</p>
-          </div>
+        {/* PANEL DE ACCIONES */}
+        <div className="lg:col-span-2 space-y-6">
 
-          {/* Banner de Mensajes de Feedback */}
-          {status.type && (
-            <div className={`p-4 rounded-xl flex items-center gap-3 text-xs border ${
-              status.type === 'success' 
-                ? 'bg-green-500/5 border-green-500/20 text-green-400' 
-                : 'bg-red-500/5 border-red-500/20 text-red-400'
-            }`}>
-              {status.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-              <p className="font-semibold">{status.message}</p>
+          {/* ⚡ GESTIÓN DE EQUIPO (SOLO ADMINISTRADOR) */}
+          {esAdmin && (
+            <div className="bg-fin-charcoal border border-fin-violet/30 rounded-3xl p-6 relative overflow-hidden space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Users size={20} className="text-fin-cyan" />
+                    <h2 className="text-lg font-black tracking-tight text-white uppercase italic">
+                      Gestión de Operadores
+                    </h2>
+                  </div>
+                  <p className="text-fin-gray-text text-xs mt-1">
+                    Crea cuentas de acceso para operadores y define sus permisos específicos en el sistema.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setModalOperadorOpen(true)}
+                  className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-fin-violet to-fin-cyan hover:opacity-90 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-neon-cyan transition-all flex-shrink-0"
+                >
+                  <UserPlus size={16} />
+                  Nuevo Operador
+                </button>
+              </div>
+
+              {/* ⚡ Banner de Éxito dentro de Gestión de Operadores */}
+              {statusOperador && (
+                <div className="p-3.5 rounded-xl flex items-center gap-3 text-xs border bg-green-500/10 border-green-500/20 text-green-400 animate-in fade-in zoom-in-95 duration-200">
+                  <CheckCircle2 size={16} className="flex-shrink-0" />
+                  <p className="font-semibold">{statusOperador}</p>
+                </div>
+              )}
             </div>
           )}
 
-          <form onSubmit={handleCambiarPassword} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Contraseña Actual</label>
-                <input 
-                  type="password"
-                  required
-                  className="w-full bg-gray-900/40 border border-gray-800 rounded-xl py-2.5 px-4 text-white text-sm focus:border-fin-violet outline-none transition-all"
-                  value={passwordActual}
-                  onChange={(e) => setPasswordActual(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Nueva Contraseña</label>
-                <input 
-                  type="password"
-                  required
-                  className="w-full bg-gray-900/40 border border-gray-800 rounded-xl py-2.5 px-4 text-white text-sm focus:border-fin-violet outline-none transition-all"
-                  value={passwordNueva}
-                  onChange={(e) => setPasswordNueva(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Confirmar Nueva Contraseña</label>
-                <input 
-                  type="password"
-                  required
-                  className="w-full bg-gray-900/40 border border-gray-800 rounded-xl py-2.5 px-4 text-white text-sm focus:border-fin-violet outline-none transition-all"
-                  value={passwordConfirmar}
-                  onChange={(e) => setPasswordConfirmar(e.target.value)}
-                />
-              </div>
+          {/* PANEL: CONFIGURACIÓN DE SEGURIDAD */}
+          <div className="bg-fin-charcoal border border-gray-800 rounded-3xl p-6 space-y-6">
+            <div>
+              <h2 className="text-xl font-black tracking-tight text-white uppercase italic flex items-center gap-2">
+                <KeyRound size={18} className="text-fin-violet" /> Seguridad de la Cuenta
+              </h2>
+              <p className="text-fin-gray-text text-xs mt-0.5">Actualizá tus credenciales de acceso para proteger el sistema.</p>
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 bg-fin-violet hover:bg-fin-violet/90 text-white font-black text-xs rounded-xl shadow-neon-violet transition-all disabled:opacity-50"
-              >
-                <Save size={14} />
-                {loading ? 'GUARDANDO...' : 'ACTUALIZAR CREDENCIALES'}
-              </button>
-            </div>
-          </form>
+            {/* Banner de Feedback de Contraseña */}
+            {statusPassword.type && (
+              <div className={`p-4 rounded-xl flex items-center gap-3 text-xs border ${
+                statusPassword.type === 'success' 
+                  ? 'bg-green-500/5 border-green-500/20 text-green-400' 
+                  : 'bg-red-500/5 border-red-500/20 text-red-400'
+              }`}>
+                {statusPassword.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                <p className="font-semibold">{statusPassword.message}</p>
+              </div>
+            )}
 
+            <form onSubmit={handleCambiarPassword} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Contraseña Actual</label>
+                  <input 
+                    type="password"
+                    required
+                    className="w-full bg-gray-900/40 border border-gray-800 rounded-xl py-2.5 px-4 text-white text-sm focus:border-fin-violet outline-none transition-all"
+                    value={passwordActual}
+                    onChange={(e) => setPasswordActual(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Nueva Contraseña</label>
+                  <input 
+                    type="password"
+                    required
+                    className="w-full bg-gray-900/40 border border-gray-800 rounded-xl py-2.5 px-4 text-white text-sm focus:border-fin-violet outline-none transition-all"
+                    value={passwordNueva}
+                    onChange={(e) => setPasswordNueva(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Confirmar Nueva Contraseña</label>
+                  <input 
+                    type="password"
+                    required
+                    className="w-full bg-gray-900/40 border border-gray-800 rounded-xl py-2.5 px-4 text-white text-sm focus:border-fin-violet outline-none transition-all"
+                    value={passwordConfirmar}
+                    onChange={(e) => setPasswordConfirmar(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={loadingPassword}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-fin-violet hover:bg-fin-violet/90 text-white font-black text-xs rounded-xl shadow-neon-violet transition-all disabled:opacity-50"
+                >
+                  <Save size={14} />
+                  {loadingPassword ? 'GUARDANDO...' : 'ACTUALIZAR CREDENCIALES'}
+                </button>
+              </div>
+            </form>
+
+          </div>
         </div>
       </div>
+
+      {/* Modal de Registro de Operadores */}
+      {esAdmin && (
+        <CrearOperadorModal
+          isOpen={modalOperadorOpen}
+          onClose={() => setModalOperadorOpen(false)}
+          onSuccess={handleOperadorCreadoExito}
+        />
+      )}
+
     </div>
   );
 }
