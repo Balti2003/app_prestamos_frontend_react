@@ -204,6 +204,7 @@ const RegistrarPagoModal = ({ isOpen, onClose, onRefresh }) => {
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch {
       alert("Error al generar el PDF");
     }

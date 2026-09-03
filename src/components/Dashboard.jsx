@@ -67,20 +67,12 @@ const Dashboard = ({ onLogout }) => {
 
   const chequearEstadoCaja = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const res = await fetch('http://localhost:8000/api/caja-diaria/estado_actual/', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const res = await api.get('/caja-diaria/estado_actual/');
+      setCajaInfo({
+        cargando: false,
+        abierta: Boolean(res.data?.caja_abierta),
+        datos: res.data,
       });
-      if (res.ok) {
-        const resData = await res.json();
-        setCajaInfo({ cargando: false, abierta: !!resData.caja_abierta, datos: resData });
-      } else {
-        setCajaInfo({ cargando: false, abierta: false, datos: null });
-      }
     } catch (err) {
       console.error("Error al chequear el estado de la caja:", err);
       setCajaInfo({ cargando: false, abierta: false, datos: null });
@@ -118,28 +110,17 @@ const Dashboard = ({ onLogout }) => {
 
   const descargarReciboSeguro = async (cuotaId) => {
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      
-      const response = await fetch(`http://localhost:8000/api/cuotas/${cuotaId}/generar_recibo/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await api.get(`/cuotas/${cuotaId}/generar_recibo/`, {
+        responseType: 'blob',
       });
 
-      if (!response.ok) {
-        throw new Error('No se pudo descargar el comprobante');
-      }
-
-      const blob = await response.blob();
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
-      
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `comprobante_cuota_${cuotaId}.pdf`);
       document.body.appendChild(link);
       link.click();
-      
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
@@ -149,33 +130,22 @@ const Dashboard = ({ onLogout }) => {
   };
 
   const descargarComprobanteDesembolsoSeguro = async (prestamoId) => {
-    try { 
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      
-      const response = await fetch(`http://localhost:8000/api/prestamos/${prestamoId}/comprobante-desembolso/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+    try {
+      const response = await api.get(`/prestamos/${prestamoId}/comprobante-desembolso/`, {
+        responseType: 'blob',
       });
 
-      if (!response.ok) {
-        throw new Error('Error al generar el comprobante de desembolso.');
-      }
-
-      const blob = await response.blob();
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
-      
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `Comprobante_Desembolso_Prestamo_${prestamoId}.pdf`);
       document.body.appendChild(link);
       link.click();
-      
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Error al descargar el PDF:", error);
+      console.error("Error al descargar el comprobante de desembolso:", error);
       alert("Ocurrió un error al intentar descargar el comprobante del préstamo.");
     }
   };

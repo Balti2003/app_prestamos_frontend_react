@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Play, FolderLock, X } from 'lucide-react';
+import api from '../api';
 import { useAuth } from '../context/AuthContext';
 
 /* ==========================================
@@ -9,33 +10,21 @@ export function AperturaCajaModal({ isOpen, onClose, saldoSugerido, onAperturaEx
   const { esAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Si no está abierto o el usuario no es Administrador, no renderiza nada
   if (!isOpen || !esAdmin) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const saldo = e.target.saldo_apertura.value;
-    const token = localStorage.getItem('token');
-    
+
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/caja-diaria/abrir_caja/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ saldo_apertura: parseFloat(saldo) })
+      await api.post('/caja-diaria/abrir_caja/', {
+        saldo_apertura: parseFloat(saldo)
       });
-      if (res.ok) {
-        onAperturaExitosa();
-      } else {
-        const err = await res.json();
-        alert(err.error || "No se pudo abrir la caja.");
-      }
+      onAperturaExitosa();
     } catch (error) {
-      console.error(error);
-      alert("Error de conexión al abrir la caja.");
+      const msg = error.response?.data?.error || "No se pudo abrir la caja.";
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -101,12 +90,11 @@ export function AperturaCajaModal({ isOpen, onClose, saldoSugerido, onAperturaEx
    2. MODAL DE ARQUEO Y CIERRE DE CAJA
    ========================================== */
 export function ArqueoCierreModal({ isOpen, datosCaja, onClose, onCierreExitoso }) {
-  const { esAdmin } = useAuth(); // 2. Verificación de rol
+  const { esAdmin } = useAuth();
   const [saldoReal, setSaldoReal] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Bloqueo de seguridad si no está abierto o no es Administrador
   if (!isOpen || !esAdmin) return null;
 
   const saldoSugerido = datosCaja?.saldo_estimado || 0;
@@ -117,30 +105,16 @@ export function ArqueoCierreModal({ isOpen, datosCaja, onClose, onCierreExitoso 
     if (saldoReal === '') return;
 
     setLoading(true);
-    const token = localStorage.getItem('token');
 
     try {
-      const res = await fetch(`http://localhost:8000/api/caja-diaria/${datosCaja.id}/cerrar_caja/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          saldo_real_fisico: parseFloat(saldoReal),
-          observaciones: observaciones
-        })
+      await api.post(`/caja-diaria/${datosCaja.id}/cerrar_caja/`, {
+        saldo_real_fisico: parseFloat(saldoReal),
+        observaciones: observaciones,
       });
-
-      if (res.ok) {
-        onCierreExitoso();
-      } else {
-        const err = await res.json();
-        alert(err.error || "No se pudo cerrar la caja.");
-      }
+      onCierreExitoso();
     } catch (error) {
-      console.error(error);
-      alert("Error de conexión al cerrar la caja.");
+      const msg = error.response?.data?.error || "No se pudo cerrar la caja.";
+      alert(msg);
     } finally {
       setLoading(false);
     }

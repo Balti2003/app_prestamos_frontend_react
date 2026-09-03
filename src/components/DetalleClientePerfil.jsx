@@ -33,35 +33,15 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
   const [deleting, setDeleting] = useState(false);
   const [mensajeAdvertencia, setMensajeAdvertencia] = useState(null);
 
-  const fetchClientePerfil = useCallback(() => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+  const fetchClientePerfil = useCallback(async () => {
+    try {
+      const res = await api.get(`/clientes/${clienteId}/`);
+      setCliente(res.data);
+    } catch (err) {
+      console.error("Error al traer el expediente:", err);
+    } finally {
+      setLoading(false);
     }
-
-    fetch(`http://localhost:8000/api/clientes/${clienteId}/`, {
-      method: 'GET',
-      headers: headers
-    })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`Error en el servidor: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        setCliente(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Error al traer el expediente:", err);
-        setLoading(false);
-      });
   }, [clienteId]);
 
   useEffect(() => {
@@ -84,7 +64,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
     return `https://wa.me/${cleanNumber}?text=${mensaje}`;
   };
 
-  // ⚡ Genera el enlace directo a Google Maps
+  // Genera el enlace directo a Google Maps
   const getMapsLink = (direccion) => {
     if (!direccion || direccion.trim() === '' || direccion.toLowerCase() === 'sin dirección') {
       return null;
@@ -97,19 +77,11 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
     if (!prestamoId) return;
     setDescargandoDesembolsoId(prestamoId);
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/api/prestamos/${prestamoId}/comprobante-desembolso/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await api.get(`/prestamos/${prestamoId}/comprobante-desembolso/`, {
+        responseType: 'blob'
       });
 
-      if (!response.ok) {
-        throw new Error("No se pudo generar el comprobante de desembolso.");
-      }
-
-      const blob = await response.blob();
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -120,6 +92,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Error al descargar comprobante de desembolso:", err);
+      alert("Error al descargar el comprobante de desembolso.");
     } finally {
       setDescargandoDesembolsoId(null);
     }
@@ -257,7 +230,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         <ArrowLeft size={14} /> Volver a la lista de clientes
       </button>
 
-      {/* --- ENCABEZADO DE EXPEDIENTE --- */}
+      {/* ENCABEZADO DE EXPEDIENTE */}
       <div className="bg-fin-charcoal border border-gray-800 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-fin-violet/10 border border-fin-violet/30 flex items-center justify-center text-fin-violet font-black text-xl uppercase flex-shrink-0">
@@ -291,7 +264,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         {/* Acciones e Info Rápida */}
         <div className="flex flex-wrap items-center gap-4 text-xs border-t md:border-t-0 border-gray-800 pt-4 md:pt-0">
           
-          {/* Tarjeta de Teléfono con acceso directo a WhatsApp */}
           {whatsappUrl ? (
             <a
               href={whatsappUrl}
@@ -317,7 +289,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             </div>
           )}
 
-          {/* Tarjeta de Dirección con acceso directo a Google Maps */}
           {mapsUrl ? (
             <a
               href={mapsUrl}
@@ -343,7 +314,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
             </div>
           )}
 
-          {/* ⚡ Botones de Acción según permisos del usuario */}
           <div className="flex gap-2">
             {tienePermiso('puede_editar_cliente') && (
               <button
@@ -386,7 +356,6 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
           </div>
         </div>
 
-        {/* Si tiene permiso para ver métricas / es Admin, ve Rentabilidad Total */}
         {tienePermiso('puede_ver_metricas') ? (
           <div className="bg-fin-charcoal border border-gray-800 rounded-2xl p-5 text-white">
             <div className="flex justify-between items-start">
@@ -441,7 +410,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
         </div>
       </div>
 
-      {/* --- SECCIÓN DE GARANTÍAS Y DOCUMENTOS --- */}
+      {/* SECCIÓN DE GARANTÍAS Y DOCUMENTOS */}
       <SeccionGarantias 
         clienteId={cliente.id} 
         garantias={cliente.garantias || []} 
@@ -578,7 +547,7 @@ export default function DetalleClientePerfil({ clienteId, onVolver, onDescargarR
       )}
 
       <ConfirmModal
-        isOpen={!!mensajeAdvertencia}
+        isOpen={Boolean(mensajeAdvertencia)}
         onClose={() => setMensajeAdvertencia(null)}
         titulo="Acción Bloqueada"
         mensaje={mensajeAdvertencia}

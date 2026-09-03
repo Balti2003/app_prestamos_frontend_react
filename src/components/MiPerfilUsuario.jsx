@@ -1,27 +1,22 @@
 import { useState } from 'react';
 import { Shield, KeyRound, Save, ArrowLeft, CheckCircle2, AlertCircle, UserPlus, Users } from 'lucide-react';
+import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import CrearOperadorModal from './CrearOperadorModal';
 
 export default function MiPerfilUsuario({ onVolverALaHome }) {
   const { user, esAdmin } = useAuth();
   
-  // Estados para el formulario de contraseña
   const [passwordActual, setPasswordActual] = useState('');
   const [passwordNueva, setPasswordNueva] = useState('');
   const [passwordConfirmar, setPasswordConfirmar] = useState('');
   
-  // Estado de feedback exclusivo para contraseña
   const [statusPassword, setStatusPassword] = useState({ type: null, message: '' });
   const [loadingPassword, setLoadingPassword] = useState(false);
 
-  // ⚡ Estado de feedback exclusivo para creación de operador
   const [statusOperador, setStatusOperador] = useState(null);
-
-  // Modal para creación de operador
   const [modalOperadorOpen, setModalOperadorOpen] = useState(false);
 
-  // Helper para generar iniciales
   const obtenerIniciales = () => {
     if (!user) return 'US';
     if (user.first_name && user.last_name) {
@@ -30,7 +25,7 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
     return user.username ? user.username.slice(0, 2).toUpperCase() : 'US';
   };
 
-  const handleCambiarPassword = (e) => {
+  const handleCambiarPassword = async (e) => {
     e.preventDefault();
     setStatusPassword({ type: null, message: '' });
 
@@ -44,34 +39,23 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
     }
 
     setLoadingPassword(true);
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-    fetch('http://localhost:8000/api/usuario/cambiar-password/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
+    try {
+      await api.post('/usuario/cambiar-password/', {
         old_password: passwordActual,
-        new_password: passwordNueva
-      })
-    })
-      .then(async res => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error al cambiar la contraseña');
-        return data;
-      })
-      .then(() => {
-        setStatusPassword({ type: 'success', message: '¡Contraseña actualizada con éxito!' });
-        setPasswordActual('');
-        setPasswordNueva('');
-        setPasswordConfirmar('');
-      })
-      .catch(err => {
-        setStatusPassword({ type: 'error', message: err.message });
-      })
-      .finally(() => setLoadingPassword(false));
+        new_password: passwordNueva,
+      });
+
+      setStatusPassword({ type: 'success', message: '¡Contraseña actualizada con éxito!' });
+      setPasswordActual('');
+      setPasswordNueva('');
+      setPasswordConfirmar('');
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message || 'Error al cambiar la contraseña';
+      setStatusPassword({ type: 'error', message: errorMsg });
+    } finally {
+      setLoadingPassword(false);
+    }
   };
 
   const handleOperadorCreadoExito = () => {
@@ -118,7 +102,7 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
         {/* PANEL DE ACCIONES */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* ⚡ GESTIÓN DE EQUIPO (SOLO ADMINISTRADOR) */}
+          {/* GESTIÓN DE EQUIPO (SOLO ADMINISTRADOR) */}
           {esAdmin && (
             <div className="bg-fin-charcoal border border-fin-violet/30 rounded-3xl p-6 relative overflow-hidden space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -144,7 +128,6 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
                 </button>
               </div>
 
-              {/* ⚡ Banner de Éxito dentro de Gestión de Operadores */}
               {statusOperador && (
                 <div className="p-3.5 rounded-xl flex items-center gap-3 text-xs border bg-green-500/10 border-green-500/20 text-green-400 animate-in fade-in zoom-in-95 duration-200">
                   <CheckCircle2 size={16} className="flex-shrink-0" />
@@ -154,7 +137,7 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
             </div>
           )}
 
-          {/* PANEL: CONFIGURACIÓN DE SEGURIDAD */}
+          {/* CONFIGURACIÓN DE SEGURIDAD */}
           <div className="bg-fin-charcoal border border-gray-800 rounded-3xl p-6 space-y-6">
             <div>
               <h2 className="text-xl font-black tracking-tight text-white uppercase italic flex items-center gap-2">
@@ -163,7 +146,6 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
               <p className="text-fin-gray-text text-xs mt-0.5">Actualizá tus credenciales de acceso para proteger el sistema.</p>
             </div>
 
-            {/* Banner de Feedback de Contraseña */}
             {statusPassword.type && (
               <div className={`p-4 rounded-xl flex items-center gap-3 text-xs border ${
                 statusPassword.type === 'success' 
@@ -227,7 +209,6 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
         </div>
       </div>
 
-      {/* Modal de Registro de Operadores */}
       {esAdmin && (
         <CrearOperadorModal
           isOpen={modalOperadorOpen}
