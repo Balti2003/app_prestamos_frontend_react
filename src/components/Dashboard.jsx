@@ -32,14 +32,21 @@ const Dashboard = ({ onLogout }) => {
   const [isAperturaModalOpen, setIsAperturaModalOpen] = useState(false);
   const [isCierreModalOpen, setIsCierreModalOpen] = useState(false);
 
-  const chartData = [
-    { name: 'Ene', ingresos: 4000 },
-    { name: 'Feb', ingresos: 3000 },
-    { name: 'Mar', ingresos: 5000 },
-    { name: 'Abr', ingresos: 4500 },
-    { name: 'May', ingresos: 6000 },
-    { name: 'Jun', ingresos: 5500 },
-  ];
+  // ⚡ Respaldo dinámico de los últimos 6 meses si la base de datos no tiene movimientos
+  const obtenerMesesPorDefecto = () => {
+    const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const hoy = new Date();
+    const resultado = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+      resultado.push({ name: mesesNombres[d.getMonth()], ingresos: 0 });
+    }
+    return resultado;
+  };
+
+  const chartData = (data?.tendencias_crecimiento && data.tendencias_crecimiento.length > 0)
+    ? data.tendencias_crecimiento
+    : obtenerMesesPorDefecto();
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -470,21 +477,42 @@ const Dashboard = ({ onLogout }) => {
                     </div>
                     <div className="h-72 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData}>
+                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                          <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                          <XAxis 
+                            dataKey="name" 
+                            stroke="#94a3b8" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                          />
+                          <YAxis 
+                            stroke="#94a3b8" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            domain={[0, 'auto']}
+                            tickFormatter={(value) => `$${value}`} 
+                          />
                           <Tooltip 
                             contentStyle={{ backgroundColor: '#16181f', border: '1px solid #374151', borderRadius: '12px' }}
                             itemStyle={{ color: '#22d3ee' }}
+                            formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Ingresos']}
                           />
-                          <Area type="monotone" dataKey="ingresos" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorIngresos)" />
+                          <Area 
+                            type="monotone" 
+                            dataKey="ingresos" 
+                            stroke="#22d3ee" 
+                            strokeWidth={3} 
+                            fillOpacity={1} 
+                            fill="url(#colorIngresos)" 
+                          />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
