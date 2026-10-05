@@ -10,6 +10,13 @@ export const AuthProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(true);
 
+  const logout = () => {
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
   useEffect(() => {
     const checkUser = async () => {
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -20,7 +27,6 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem('user', JSON.stringify(res.data));
         } catch (err) {
           console.error("Error al obtener sesión:", err);
-          // eslint-disable-next-line react-hooks/immutability
           logout();
         }
       }
@@ -35,24 +41,28 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    sessionStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-  };
+  // Roles, permisos y contexto de empresa
+  const esAdmin = user?.es_admin === true || user?.empresa?.rol === 'admin';
+  const empresa = user?.empresa || null;
+  const nombreEmpresa = user?.empresa?.nombre || 'Mi Negocio';
 
-  // Roles y permisos
-  const esAdmin = user?.es_admin === true;
-
-  // ⚡ Helper universal para verificar permisos en cualquier componente
+  // Helper universal para verificar permisos en cualquier componente
   const tienePermiso = (nombrePermiso) => {
-    if (esAdmin) return true; // El administrador siempre tiene todos los permisos
+    if (esAdmin) return true;
     return user?.permisos?.[nombrePermiso] === true;
   };
 
   return (
-    <AuthContext.Provider value={{ user, esAdmin, tienePermiso, login, logout, loading }}>
+    <AuthContext.Provider value={{
+      user,
+      empresa,
+      nombreEmpresa,
+      esAdmin,
+      tienePermiso,
+      login,
+      logout,
+      loading
+    }}>
       {children}
     </AuthContext.Provider>
   );

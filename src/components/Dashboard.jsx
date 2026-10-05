@@ -14,12 +14,12 @@ import { AperturaCajaModal, ArqueoCierreModal } from './CajaModales';
 import { 
   DollarSign, TrendingUp, AlertCircle, ArrowUpRight, 
   CalendarDays, LogOut, UserPlus, FilePlus, ReceiptText, Play, 
-  CheckCircle2, FolderLock, FileText, Calculator, Users
+  CheckCircle2, FolderLock, FileText, Calculator, Users, Building2
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard = ({ onLogout }) => {
-  const { user, esAdmin, tienePermiso } = useAuth();
+  const { user, esAdmin, tienePermiso, nombreEmpresa } = useAuth();
   const [activeTab, setActiveTab] = useState('resumen');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -183,12 +183,12 @@ const Dashboard = ({ onLogout }) => {
         onRefresh={fetchDashboardData} 
       />
 
-      {/* HEADER RESPONSIVO */}
+      {/* HEADER RESPONSIVO MULTI-TENANT */}
       <header className="p-4 lg:p-6 lg:px-10 flex flex-col lg:flex-row justify-between items-center gap-4 border-b border-gray-800 bg-fin-charcoal/30 sticky top-0 z-50 backdrop-blur-md w-full">
         
-        {/* SECCIÓN IZQUIERDA */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-8 w-full lg:w-auto justify-between sm:justify-start">
-            <div className="flex flex-col">
+        {/* SECCIÓN IZQUIERDA: Marca + Insignia de Empresa */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6 w-full lg:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-3">
                 <Brand 
                   size="md"
                   onClick={() => {
@@ -196,6 +196,14 @@ const Dashboard = ({ onLogout }) => {
                     setActiveTab('resumen');
                   }} 
                 />
+                
+                {/* Badge de Empresa / Espacio de Trabajo */}
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-fin-charcoal border border-gray-800 text-xs font-semibold text-gray-300">
+                  <Building2 size={14} className="text-fin-cyan" />
+                  <span className="truncate max-w-[160px] text-white font-bold" title={nombreEmpresa}>
+                    {nombreEmpresa}
+                  </span>
+                </div>
             </div>
 
             {/* NAVEGACIÓN */}
@@ -229,12 +237,18 @@ const Dashboard = ({ onLogout }) => {
             </nav>
         </div>
 
-        {/* SECCIÓN DERECHA */}
+        {/* SECCIÓN DERECHA: Perfil + Empresa móvil + Salir */}
         <div className="flex items-center justify-between sm:justify-end w-full lg:w-auto gap-4 sm:gap-6 border-t border-gray-800/40 lg:border-t-0 pt-3 lg:pt-0">
-            <div className="hidden sm:flex flex-col items-end">
-                <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">
-                  {esAdmin ? 'Administrador' : 'Operador'}
-                </span>
+            <div className="flex flex-col items-start sm:items-end">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">
+                    {esAdmin ? 'Administrador' : 'Operador'}
+                  </span>
+                  <span className="text-gray-600 hidden sm:inline">•</span>
+                  <span className="text-xs text-fin-cyan font-bold truncate max-w-[130px] sm:hidden">
+                    {nombreEmpresa}
+                  </span>
+                </div>
                 <span className="text-sm font-medium text-white">
                   Hola, {user?.first_name || user?.username || 'Usuario'}
                 </span>
