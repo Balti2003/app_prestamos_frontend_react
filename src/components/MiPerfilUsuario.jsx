@@ -1,11 +1,14 @@
-import { useState } from 'react';
-import { Shield, KeyRound, Save, ArrowLeft, CheckCircle2, AlertCircle, UserPlus, Users } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { 
+  Shield, KeyRound, Save, ArrowLeft, CheckCircle2, 
+  AlertCircle, UserPlus, Users, Building2, UserCheck
+} from 'lucide-react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import CrearOperadorModal from './CrearOperadorModal';
 
 export default function MiPerfilUsuario({ onVolverALaHome }) {
-  const { user, esAdmin } = useAuth();
+  const { user, esAdmin, nombreEmpresa } = useAuth();
   
   const [passwordActual, setPasswordActual] = useState('');
   const [passwordNueva, setPasswordNueva] = useState('');
@@ -14,8 +17,28 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
   const [statusPassword, setStatusPassword] = useState({ type: null, message: '' });
   const [loadingPassword, setLoadingPassword] = useState(false);
 
+  const [operadores, setOperadores] = useState([]);
+  const [loadingOperadores, setLoadingOperadores] = useState(false);
   const [statusOperador, setStatusOperador] = useState(null);
   const [modalOperadorOpen, setModalOperadorOpen] = useState(false);
+
+  const fetchOperadores = useCallback(async () => {
+    if (!esAdmin) return;
+    setLoadingOperadores(true);
+    try {
+      const res = await api.get('/crear-operador/');
+      setOperadores(res.data);
+    } catch (err) {
+      console.error("Error al cargar la lista de operadores:", err);
+    } finally {
+      setLoadingOperadores(false);
+    }
+  }, [esAdmin]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchOperadores();
+  }, [fetchOperadores]);
 
   const obtenerIniciales = () => {
     if (!user) return 'US';
@@ -60,6 +83,7 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
 
   const handleOperadorCreadoExito = () => {
     setStatusOperador('¡Nuevo operador creado y configurado con éxito!');
+    fetchOperadores();
     setTimeout(() => {
       setStatusOperador(null);
     }, 4000);
@@ -78,7 +102,7 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* TARJETA DE INFORMACIÓN DEL OPERADOR / ADMIN */}
+        {/* TARJETA DE PERFIL Y DATOS DE LA EMPRESA */}
         <div className="bg-fin-charcoal border border-gray-800 rounded-3xl p-6 flex flex-col items-center text-center space-y-4 h-fit">
           <div className="w-20 h-20 rounded-2xl bg-fin-violet/10 border border-fin-violet/30 flex items-center justify-center text-fin-violet font-black text-3xl shadow-neon-violet/5">
             {obtenerIniciales()}
@@ -89,13 +113,22 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
             </h3>
             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1 flex items-center justify-center gap-1.5">
               <Shield size={12} className={esAdmin ? "text-fin-cyan" : "text-amber-400"} /> 
-              {esAdmin ? 'Administrador del Sistema' : 'Operador de Campo'}
+              {esAdmin ? 'Administrador' : 'Operador de Campo'}
             </p>
           </div>
+
+          {/* Bloque de Identificación de Negocio / Empresa */}
+          <div className="w-full bg-black/40 border border-gray-800 rounded-2xl p-3 text-left">
+            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1">
+              <Building2 size={12} className="text-fin-cyan" /> Espacio de Trabajo
+            </span>
+            <p className="text-sm font-bold text-white truncate">{nombreEmpresa}</p>
+          </div>
+
           <div className="w-full border-t border-gray-800/60 pt-4 text-left space-y-2 text-xs text-gray-400">
             <p>• <span className="font-semibold text-gray-500">Usuario:</span> {user?.username}</p>
             <p>• <span className="font-semibold text-gray-500">Email:</span> {user?.email || 'Sin correo registrado'}</p>
-            <p>• <span className="font-semibold text-gray-500">Estado de cuenta:</span> Activo / Conectado</p>
+            <p>• <span className="font-semibold text-gray-500">Estado:</span> <span className="text-green-400 font-semibold">Activo</span></p>
           </div>
         </div>
 
@@ -104,17 +137,17 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
 
           {/* GESTIÓN DE EQUIPO (SOLO ADMINISTRADOR) */}
           {esAdmin && (
-            <div className="bg-fin-charcoal border border-fin-violet/30 rounded-3xl p-6 relative overflow-hidden space-y-4">
+            <div className="bg-fin-charcoal border border-fin-violet/30 rounded-3xl p-6 relative overflow-hidden space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
                     <Users size={20} className="text-fin-cyan" />
                     <h2 className="text-lg font-black tracking-tight text-white uppercase italic">
-                      Gestión de Operadores
+                      Equipo de Operadores
                     </h2>
                   </div>
                   <p className="text-fin-gray-text text-xs mt-1">
-                    Crea cuentas de acceso para operadores y define sus permisos específicos en el sistema.
+                    Operadores registrados bajo tu cuenta en <strong className="text-white">{nombreEmpresa}</strong>.
                   </p>
                 </div>
 
@@ -134,6 +167,43 @@ export default function MiPerfilUsuario({ onVolverALaHome }) {
                   <p className="font-semibold">{statusOperador}</p>
                 </div>
               )}
+
+              {/* LISTA DE OPERADORES REGISTRADOS */}
+              <div className="border border-gray-800 rounded-2xl overflow-hidden bg-black/20">
+                {loadingOperadores ? (
+                  <div className="p-6 text-center text-xs text-gray-500 animate-pulse">
+                    Cargando equipo de trabajo...
+                  </div>
+                ) : operadores.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-gray-500">
+                    Aún no tienes operadores registrados en tu empresa. Usa el botón "Nuevo Operador" para sumar uno.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-800/80">
+                    {operadores.map((op) => (
+                      <div key={op.id} className="p-3.5 flex items-center justify-between hover:bg-gray-800/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center text-fin-cyan text-xs font-bold">
+                            <UserCheck size={16} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white leading-tight">
+                              {op.first_name ? `${op.first_name} ${op.last_name || ''}` : op.username}
+                            </p>
+                            <span className="text-[10px] text-gray-400">@{op.username}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-fin-cyan/10 text-fin-cyan border border-fin-cyan/20 uppercase">
+                            Operador Activo
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
